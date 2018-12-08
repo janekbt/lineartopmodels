@@ -24,10 +24,15 @@ conversion: convert sqfeet into sqm (1 sqft = 0.092903 sqm) for every var. done.
             date: (needs reformating, try with week and month) done.
             yr_renovated: try as bool for "recently renovated (no more than 5 or 10 years             ago)" or renovated at all (bool) done.
             
-clean up: look for NA's, maybe negative, zeros, outliers (too high, too low)
+clean up: maybe negative, zeros
+```{r}
+any(is.na(dat))
+```
+
 
 Attack plan:
 
+- outliers (too high, too low)
 - distr. plot for variables, pick interesting ones
 - outliers detection (cooks dist., leverage etc.) and annihilation
 - correlation between variables and response var and transformation
@@ -89,6 +94,5 @@ Create a new bool variable for a house being renovated at some point or not.
 ```{r}
 dat$renovated <- ifelse(dat$yr_renovated > 0, 1, 0)
 str(dat)
-something-random <- 123
 ```
 
