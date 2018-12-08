@@ -5,27 +5,48 @@ date: "December 8, 2018"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+dat <- read.csv("kc_house_data.csv", stringsAsFactors = F)
+str(dat)
+hist(dat$price, breaks = "FD")
+median(dat$price)
+quantile(dat$price, seq(0, 1, 0.01))
+nrow(dat)
 ```
 
-## R Markdown
+We want to keep date, price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, yr_built, yr_renovated, longitude, sqft_living15, sqft_lot15
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+might remove: sqft_above, sqft_basement, grade
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+remove view, condition, zip, latitude (because of shittiness)
 
-```{r cars}
-summary(cars)
-test <- "HI"
+conversion: convert sqfeet into sqm (1 sqft = 0.092903 sqm) for every var.
+            date: (needs reformating, try with week and month)
+            yr_renovated: try as bool for "recently renovated (no more than 5 or 10 years             ago)" or renovated at all (bool)
+            
+clean up: look for NA's, maybe negative, zeros, outliers (too high, too low)
+
+Attack plan:
+
+- distr. plot for variables, pick interesting ones
+- outliers detection (cooks dist., leverage etc.) and annihilation
+- correlation between variables and response var and transformation
+- compare full and reduced models, F-statistics
+- 
+
+```{r}
+hist(dat$yr_renovated, breaks = "FD")
+sort(unique(dat$yr_renovated))
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+              
+              
+```{r}
+lmo <- lm(price ~. ,data = dat[,-2])
+summary(lmo)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+hist(dat$sqft_basement * 0.092903, breaks = "FD")
+```
+
