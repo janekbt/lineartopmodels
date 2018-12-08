@@ -88,5 +88,6 @@ mean(dat$price[dat$yr_renovated > 2000])
 ```{r}
 dat$renovated <- ifelse(dat$yr_renovated > 0, 1, 0)
 str(dat)
+test <- "hello"
 ```
 
