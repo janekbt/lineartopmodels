@@ -20,9 +20,9 @@ might remove: sqft_above, sqft_basement, grade
 
 remove view, condition, zip, latitude (because of shittiness)
 
-conversion: convert sqfeet into sqm (1 sqft = 0.092903 sqm) for every var.
-            date: (needs reformating, try with week and month)
-            yr_renovated: try as bool for "recently renovated (no more than 5 or 10 years             ago)" or renovated at all (bool)
+conversion: convert sqfeet into sqm (1 sqft = 0.092903 sqm) for every var. done.
+            date: (needs reformating, try with week and month) done.
+            yr_renovated: try as bool for "recently renovated (no more than 5 or 10 years             ago)" or renovated at all (bool) done.
             
 clean up: look for NA's, maybe negative, zeros, outliers (too high, too low)
 
@@ -32,21 +32,61 @@ Attack plan:
 - outliers detection (cooks dist., leverage etc.) and annihilation
 - correlation between variables and response var and transformation
 - compare full and reduced models, F-statistics
-- 
 
+Covert sqft into sqm:
 ```{r}
-hist(dat$yr_renovated, breaks = "FD")
-sort(unique(dat$yr_renovated))
+dat[,c("sqm_living",
+       "sqm_lot",
+       "sqm_above",
+       "sqm_basement",
+       "sqm_living15",
+       "sqm_lot15")] <- dat[, c("sqft_living", 
+                                "sqft_lot",
+                                "sqft_above",
+                                "sqft_basement", 
+                                "sqft_living15",
+                                "sqft_lot15")]  * 0.092903
+
+dat <- dat[, -which(names(dat) %in% c("sqft_living", "sqft_lot", "sqft_above",
+               "sqft_basement", 
+               "sqft_living15",
+               "sqft_lot15"))]
+str(dat)
 ```
 
-              
-              
+Change date format by adding a month of year and a week of year column:
 ```{r}
-lmo <- lm(price ~. ,data = dat[,-2])
-summary(lmo)
+library(tidyverse)
+#install.packages("lubridate")
+library(lubridate)
+
+full_date_column <- dat$week_of_year <- substr(dat$date, 1, 8) %>%
+  ymd %>%
+  as.Date
+
+dat$week_of_year <- format(full_date_column, "%W")
+dat$month_of_year <- format(full_date_column, "%m")
+str(dat)
+```
+
+Variable: yr_renovated
+comparisons of different house price means for different renovation intervals.
+```{r}
+paste("percentage renovated houses = ", round(length(dat$yr_renovated[dat$yr_renovated > 0])/nrow(dat), 3) * 100, "%") 
+
+a <- mean(dat$price[dat$yr_renovated > 0])
+b <- mean(dat$price[dat$yr_renovated == 0])
+c <- mean(dat$price)
+rbind("mean price of renov. houses" = a,
+  "mean price of non renov. houses " = b,
+  "mean price of all houses" = c)
+
+mean(dat$price[dat$yr_renovated > 0 & dat$yr_renovated <= 2000])
+mean(dat$price[dat$yr_renovated > 2000])
 ```
 
 ```{r}
-hist(dat$sqft_basement * 0.092903, breaks = "FD")
+dat$renovated <- ifelse(dat$yr_renovated > 0, 1, 0)
+str(dat)
 ```
 
