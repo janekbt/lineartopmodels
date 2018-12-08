@@ -1,31 +1,126 @@
 ---
-title: "exploring"
-author: "Janek Teders"
+title: "Exploring"
+author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
 date: "December 8, 2018"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r include=FALSE}
+library(tidyverse)
 ```
 
-## R Markdown
+## Attack plan:
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+- outliers (too high, too low)
+- distr. plot for variables, pick interesting ones
+- outliers detection (cooks dist., leverage etc.) and annihilation
+- correlation between variables and response var and transformation
+- compare full and reduced models, F-statistics
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-test <- "HI"
+## Reading in the dataset
+```{r}
+dat <- read.csv("kc_house_data.csv", stringsAsFactors = F)
+str(dat)
 ```
 
-## Including Plots
+\newpage
 
-You can also embed plots, for example:
+## Which variables to keep, which not
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+keep: 
+
+- date, price
+- bedrooms
+- bathrooms
+- sqft_living
+- sqft_lot
+- floors
+- waterfront
+- yr_built
+- yr_renovated
+- longitude
+- sqft_living15
+- sqft_lot15
+
+might remove: 
+
+- sqft_above
+- sqft_basement
+- grade
+- id(?)
+
+remove:
+
+- view
+- condition
+- zip
+- latitude (because of shittiness)
+
+conversion: 
+
+* convert sqfeet into sqm (1 sqft = 0.092903 sqm) for every var. done.
+* date: (needs reformating, try with week and month) done.
+* yr_renovated: try as bool for "recently renovated (no more than 5 or 10 years             ago)" or renovated at all (bool) done.
+
+## Clean up for further processing
+
+clean up: maybe negative, zeros
+
+### Check for NA's, unreasonably negative values and inspect zeros:
+```{r}
+any(is.na(dat))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+### Convert sqft into sqm:
+```{r}
+sqft_columns <- grepl("sqft", colnames(dat)) %>% colnames(dat)[.]
+
+sqm_columns <- gsub("sqft", "sqm", sqft_columns)
+
+dat[, sqm_columns] <- dat[, sqft_columns]  * 0.092903
+
+dat <- -which(names(dat) %in% sqft_columns) %>% dat[,.]
+str(dat)
+```
+
+### Adding a month of year and a week of year column, remove date:
+```{r include=FALSE}
+#install.packages("lubridate")
+library(lubridate)
+```
+
+```{R}
+full_date_column <- substr(dat$date, 1, 8) %>% ymd %>% as.Date
+
+dat$week_of_year <- format(full_date_column, "%W")
+dat$month_of_year <- format(full_date_column, "%m")
+dat <- -which(names(dat) %in% "date") %>% dat[,.]
+str(dat)
+```
+
+### Variable: yr_renovated
+
+comparisons of different house price means for different renovation intervals.
+```{r}
+rbind(
+  "percentage renovated houses" = 
+    round(length(dat$yr_renovated[dat$yr_renovated > 0])/nrow(dat), 3) * 100,
+  "mean price of all houses" = 
+    mean(dat$price),
+  "mean price of renov. houses" = 
+    mean(dat$price[dat$yr_renovated > 0]),
+  "mean price of non renov. houses" =
+    mean(dat$price[dat$yr_renovated == 0]),
+  "mean price of renov. houses before 2000" = 
+    mean(dat$price[dat$yr_renovated > 0 & dat$yr_renovated <= 2000]),
+  "mean price of houses renov. after 2000" = 
+    mean(dat$price[dat$yr_renovated > 2000]))
+```
+
+Create a new factor variable for a house being renovated at some point or not.
+```{r}
+dat$renovated <- as.factor(ifelse(dat$yr_renovated > 0, "yes", "no"))
+str(dat)
+```
+
