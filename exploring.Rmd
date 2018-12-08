@@ -1,36 +1,15 @@
 ---
-title: "exploring"
-author: "Janek Teders"
+title: "Exploring"
+author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
 date: "December 8, 2018"
 output: pdf_document
 ---
 
-```{r}
-dat <- read.csv("kc_house_data.csv", stringsAsFactors = F)
-str(dat)
-hist(dat$price, breaks = "FD")
-median(dat$price)
-quantile(dat$price, seq(0, 1, 0.01))
-nrow(dat)
+```{r include=FALSE}
+library(tidyverse)
 ```
 
-We want to keep date, price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, yr_built, yr_renovated, longitude, sqft_living15, sqft_lot15
-
-might remove: sqft_above, sqft_basement, grade
-
-remove view, condition, zip, latitude (because of shittiness)
-
-conversion: convert sqfeet into sqm (1 sqft = 0.092903 sqm) for every var. done.
-            date: (needs reformating, try with week and month) done.
-            yr_renovated: try as bool for "recently renovated (no more than 5 or 10 years             ago)" or renovated at all (bool) done.
-            
-clean up: maybe negative, zeros
-```{r}
-any(is.na(dat))
-```
-
-
-Attack plan:
+## Attack plan:
 
 - outliers (too high, too low)
 - distr. plot for variables, pick interesting ones
@@ -38,61 +17,110 @@ Attack plan:
 - correlation between variables and response var and transformation
 - compare full and reduced models, F-statistics
 
-Covert sqft into sqm:
+## Reading in the dataset
 ```{r}
-dat[,c("sqm_living",
-       "sqm_lot",
-       "sqm_above",
-       "sqm_basement",
-       "sqm_living15",
-       "sqm_lot15")] <- dat[, c("sqft_living", 
-                                "sqft_lot",
-                                "sqft_above",
-                                "sqft_basement", 
-                                "sqft_living15",
-                                "sqft_lot15")]  * 0.092903
-
-dat <- dat[, -which(names(dat) %in% c("sqft_living", "sqft_lot", "sqft_above",
-               "sqft_basement", 
-               "sqft_living15",
-               "sqft_lot15"))]
+dat <- read.csv("kc_house_data.csv", stringsAsFactors = F)
 str(dat)
 ```
 
-Change date format by adding a month of year and a week of year column:
+\newpage
+
+## Which variables to keep, which not
+
+keep: 
+
+- date, price
+- bedrooms
+- bathrooms
+- sqft_living
+- sqft_lot
+- floors
+- waterfront
+- yr_built
+- yr_renovated
+- longitude
+- sqft_living15
+- sqft_lot15
+
+might remove: 
+
+- sqft_above
+- sqft_basement
+- grade
+- id(?)
+
+remove:
+
+- view
+- condition
+- zip
+- latitude (because of shittiness)
+
+conversion: 
+
+* convert sqfeet into sqm (1 sqft = 0.092903 sqm) for every var. done.
+* date: (needs reformating, try with week and month) done.
+* yr_renovated: try as bool for "recently renovated (no more than 5 or 10 years             ago)" or renovated at all (bool) done.
+
+## Clean up for further processing
+
+clean up: maybe negative, zeros
+
+### Check for NA's, unreasonably negative values and inspect zeros:
 ```{r}
-library(tidyverse)
+any(is.na(dat))
+```
+
+
+### Convert sqft into sqm:
+```{r}
+sqft_columns <- grepl("sqft", colnames(dat)) %>% colnames(dat)[.]
+
+sqm_columns <- gsub("sqft", "sqm", sqft_columns)
+
+dat[, sqm_columns] <- dat[, sqft_columns]  * 0.092903
+
+dat <- -which(names(dat) %in% sqft_columns) %>% dat[,.]
+str(dat)
+```
+
+### Adding a month of year and a week of year column, remove date:
+```{r include=FALSE}
 #install.packages("lubridate")
 library(lubridate)
+```
 
-full_date_column <- dat$week_of_year <- substr(dat$date, 1, 8) %>%
-  ymd %>%
-  as.Date
+```{R}
+full_date_column <- substr(dat$date, 1, 8) %>% ymd %>% as.Date
 
 dat$week_of_year <- format(full_date_column, "%W")
 dat$month_of_year <- format(full_date_column, "%m")
+dat <- -which(names(dat) %in% "date") %>% dat[,.]
 str(dat)
 ```
 
-Variable: yr_renovated
+### Variable: yr_renovated
+
 comparisons of different house price means for different renovation intervals.
 ```{r}
-paste("percentage renovated houses = ", round(length(dat$yr_renovated[dat$yr_renovated > 0])/nrow(dat), 3) * 100, "%") 
-
-a <- mean(dat$price[dat$yr_renovated > 0])
-b <- mean(dat$price[dat$yr_renovated == 0])
-c <- mean(dat$price)
-rbind("mean price of renov. houses" = a,
-  "mean price of non renov. houses " = b,
-  "mean price of all houses" = c)
-
-mean(dat$price[dat$yr_renovated > 0 & dat$yr_renovated <= 2000])
-mean(dat$price[dat$yr_renovated > 2000])
+rbind(
+  "percentage renovated houses" = 
+    round(length(dat$yr_renovated[dat$yr_renovated > 0])/nrow(dat), 3) * 100,
+  "mean price of all houses" = 
+    mean(dat$price),
+  "mean price of renov. houses" = 
+    mean(dat$price[dat$yr_renovated > 0]),
+  "mean price of non renov. houses" =
+    mean(dat$price[dat$yr_renovated == 0]),
+  "mean price of renov. houses before 2000" = 
+    mean(dat$price[dat$yr_renovated > 0 & dat$yr_renovated <= 2000]),
+  "mean price of houses renov. after 2000" = 
+    mean(dat$price[dat$yr_renovated > 2000]))
 ```
 
-Create a new bool variable for a house being renovated at some point or not.
+Create a new factor variable for a house being renovated at some point or not.
 ```{r}
-dat$renovated <- ifelse(dat$yr_renovated > 0, 1, 0)
+dat$renovated <- as.factor(ifelse(dat$yr_renovated > 0, "yes", "no"))
 str(dat)
 ```
 
