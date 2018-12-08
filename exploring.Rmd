@@ -85,9 +85,9 @@ mean(dat$price[dat$yr_renovated > 0 & dat$yr_renovated <= 2000])
 mean(dat$price[dat$yr_renovated > 2000])
 ```
 
+Create a new bool variable for a house being renovated at some point or not.
 ```{r}
 dat$renovated <- ifelse(dat$yr_renovated > 0, 1, 0)
 str(dat)
-test <- "hello"
 ```
 
