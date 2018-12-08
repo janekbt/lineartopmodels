@@ -1,0 +1,3 @@
+# lineartopmodels
+Linear models assignment
+Nicolas sucks...
