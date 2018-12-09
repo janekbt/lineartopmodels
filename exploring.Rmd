@@ -124,3 +124,9 @@ dat$renovated <- as.factor(ifelse(dat$yr_renovated > 0, "yes", "no"))
 str(dat)
 ```
 
+```{r}
+neat_dat <- select(dat, -lat, -condition, -view, -zipcode, -id) %>%
+  select(price:long, week_of_year, month_of_year, renovated, sqm_living:sqm_lot15)
+str(neat_dat)
+```
+
