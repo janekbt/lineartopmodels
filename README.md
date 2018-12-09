@@ -1,3 +1,3 @@
 # lineartopmodels
 Linear models assignment
-Nicolas sucks...
+Janek is not a very nice individual.
