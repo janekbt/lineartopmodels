@@ -8,6 +8,7 @@ output: pdf_document
 ```{r, setup}
 library(tidyverse)
 library(lubridate)
+library(car)
 
 dat <- read_csv("kc_house_data.csv")
 
@@ -74,6 +75,20 @@ anova(lmo_1, lmo_2, lmo_3)
 
 ```{r}
 vars_1 <- good_corr[! good_corr %in% c("sqm_above", "sqm_basement")]
+```
+```{r}
+f_mod <- clean_dat %>%
+  select(one_of(vars_1)) %>%
+  lm(data = ., log10(price) ~ .)
+  
+drop1(f_mod, test = "F")
+  
+avPlots(f_mod)
+```
+
+```{r}
+install.packages("styler")
+load(styler)
 ```
 
 
