@@ -7,6 +7,7 @@ output: pdf_document
 
 ```{r, setup}
 library(tidyverse)
+library(lubridate)
 
 dat <- read_csv("kc_house_data.csv")
 
@@ -29,10 +30,7 @@ clean_dat <- dat %>%
 
 # Chapter 1: Variable selection
 
-- remove variablesbased on correlation
-
-- remove variables to reduce amount to make computation possible if necessary
-- run full model
+- remove variables based on correlation
 
 
 ```{r}
@@ -52,6 +50,9 @@ good_corr <- corrs %>%
   .[10:length(.)]
 ```
 
+- Did a cut after yr_renovated, correlation jumps from 0.12 to 0.25 at this point.
+- checking if we keep sqm_living or sqm_above and sqm_basement, because they consist of each other.
+
 ```{r}
 lmo_1 <- clean_dat %>%
   select(one_of(good_corr)) %>%
@@ -66,6 +67,13 @@ lmo_3 <- clean_dat %>%
   lm(data = ., log10(price) ~.)
 
 anova(lmo_1, lmo_2, lmo_3)
+```
+
+- cool thing: na's in sqm_living because it is a linear combination of sqm_above and sqm_basement
+- lmo_3 (with sqm_living) performs better than lmo_2 (with sqm_above and sqm_basement)
+
+```{r}
+vars_1 <- good_corr[! good_corr %in% c("sqm_above", "sqm_basement")]
 ```
 
 
