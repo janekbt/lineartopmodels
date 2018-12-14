@@ -52,6 +52,21 @@ good_corr <- corrs %>%
   .[10:length(.)]
 ```
 
+```{r}
+lmo_1 <- clean_dat %>%
+  select(one_of(good_corr)) %>%
+  lm(data = ., log10(price) ~.)
+
+lmo_2 <- clean_dat %>%
+  select(one_of(good_corr), -sqm_living) %>%
+  lm(data = ., log10(price) ~.)
+
+lmo_3 <- clean_dat %>%
+  select(one_of(good_corr), -sqm_above, -sqm_basement) %>%
+  lm(data = ., log10(price) ~.)
+
+anova(lmo_1, lmo_2, lmo_3)
+```
 
 
 
