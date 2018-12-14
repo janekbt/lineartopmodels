@@ -1,0 +1,297 @@
+---
+title: "SqmVariablesExploration"
+author: "Nicolas"
+date: "12/11/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(car)
+library(dplyr)
+```
+
+## -1) Original 'neat' data
+```{r}
+str(neat_dat)
+```
+
+### Considerations
+Might remove: 
+   - sqft_above
+   - sqft_basement
+
+Attack plan:
+   - distr. plot for variables, pick interesting ones
+   - outliers (too high, too low)
+   - outliers detection (cooks dist., leverage etc.) and annihilation
+   - correlation between variables and response var and transformation
+   - check for multicolinearity
+   - compare full and reduced models, F-statistics
+
+
+## 0) Subsetting relevant columns
+```{r}
+target_sqm_cols <- c("price", "sqm_living", "sqm_lot", "sqm_above", "sqm_basement", "sqm_living15", "sqm_lot15")
+target_sqm_df <- neat_dat[target_sqm_cols]
+str(target_sqm_df)
+```
+
+
+## 1) Checking for some assumptions of the data to make sense:
+```{r}
+#### a) Is the sum of basement + above = living? In how many cases? What's the difference when it is not equivalent?
+
+sumAboveAndBasement = sqm_above + sqm_basement
+equalSumIndex = (sumAboveAndBasement == sqm_living)
+
+# How many are matching?
+cat("Percentage of houses where the sum matches the sqm_living: ", mean(equalSumIndex))
+
+# are there any cases where the difference is greater than one or 1/2?
+cat("\nAny significant difference (more than 0.5)? ", any(abs(sumAboveAndBasement-sqm_living) > 0.5) )
+
+
+
+#### b) Are there any negative values (there should not be)?
+
+has_negatives = any(
+  c(any(price < 0),
+  any(sqm_living < 0),
+  any(sqm_lot < 0),
+  any(sqm_above < 0),
+  any(sqm_basement < 0),
+  any(sqm_living15 < 0),
+  any(sqm_lot15 < 0)) )
+
+cat("\n\nAre there negative values? ", has_negatives)
+
+
+#### c) Digging into living15 and lost15. Are they about 2015 or about 15 neighbors?
+
+# Tricky question. But let's look at the percentage of houses where living15 equals living (and same for lot), because it might be strange that the average of other houses are consistently equal to the pertinent house.
+
+livingEqualsPercent = sqm_living == sqm_living15
+lotEqualsPercent = sqm_lot == sqm_lot15
+
+cat("\n\nLivings are equal percentage: ", mean(livingEqualsPercent)) # 0.1187248
+cat("\nLots are equal percentage: ", mean(lotEqualsPercent)) # 0.2070513
+
+# Not very conclusive results: (~12% & ~21%) Values are big enough to be merely coincidence, but small enough to have the benefit of the doubt.
+
+
+```
+
+
+# 2) Reviewing Distributions of the variables
+
+HISTOGRAMS OF TARGET VARIABLE (Checking for normality)
+
+```{r}
+priceLog = log(price)
+hist(price, breaks = "FD", main = "Prices") # High peak, very skewed right
+hist(priceLog, breaks = "FD", main = "Prices Logarithm") # Normal-ish
+qqpPrice = qqPlot(price, main = "Prices")
+qqpPriceLog = qqPlot(priceLog, main = "Prices Logarithm")
+```
+ 
+** Seems desirable to work with the logarithm as the dependent variable, given that clearly follows a more normally distributed pattern. (TODO: test models predicting original vs. log)
+
+
+
+HISTOGRAMS OF PREDICTORS
+
+```{r}
+hist(sqm_living, breaks = "FD") # Normal, skewed right
+hist(log10(sqm_living), breaks = "FD") # Normal, skewed right
+hist(sqm_lot, breaks = "FD") # seems Exponential
+hist(sqm_above, breaks = "FD") # Normal, skewed right
+hist(sqm_basement, breaks = "FD") # Bunch of zeroes and then flat Normal dist
+hist(sqm_living15, breaks = "FD") # Normal, skewed right
+hist(sqm_lot15, breaks = "FD") # seems Exponential]
+par(mfrow=c(3,2))
+hist(sqm_living, breaks = "FD") # Normal, skewed right
+hist(sqm_lot, breaks = "FD") # seems Exponential
+hist(sqm_above, breaks = "FD") # Normal, skewed right
+hist(sqm_basement, breaks = "FD") # Bunch of zeroes and then flat Normal dist
+hist(sqm_living15, breaks = "FD") # Normal, skewed right
+hist(sqm_lot15, breaks = "FD") # seems Exponential
+par(mfrow=c(1,1))
+```
+
+Some observations:
+
+** living, living15 and above follow a very similar relatively normal, right-skewed distribution.
+
+** lot and lot15 also have very similar peaked distributions, but it is hard to describe. Further analysis needed.
+
+** basement seems to be problematic. Not all houses have a basement, so it doesn't follow a particularly known distribution. (TODO: Might be valuable to look at the average difference in houses with and without basement).
+
+
+
+
+
+BOXPLOTS OF PREDICTORS (using range as:  1.5xIQR vs 10xIQR)
+
+*1.5xIQR -> represents the standard distance for outliers detection.
+*10xIQR  -> intended to catch only the most extreme outliers (10 interquartile ranges away from the median).
+
+```{r}
+par(mfrow=c(3,2))
+boxplot(sqm_living, main = "sqm_living x10", horizontal = TRUE, range = 10)
+boxplot(sqm_living, main = "sqm_living", horizontal = TRUE)
+
+boxplot(sqm_lot, main = "sqm_lot x10", horizontal = TRUE, range = 10)
+boxplot(sqm_lot, main = "sqm_lot", horizontal = TRUE)
+
+boxplot(sqm_above, main = "sqm_above x10", horizontal = TRUE, range = 10)
+boxplot(sqm_above, main = "sqm_above", horizontal = TRUE)
+
+boxplot(sqm_basement, main = "sqm_basement x10", horizontal = TRUE, range = 10)
+boxplot(sqm_basement, main = "sqm_basement", horizontal = TRUE)
+
+boxplot(sqm_living15, main = "sqm_living15 x10", horizontal = TRUE, range = 10)
+boxplot(sqm_living15, main = "sqm_living15", horizontal = TRUE)
+
+boxplot(sqm_lot15, main = "sqm_lot15 x10", horizontal = TRUE, range = 10)
+boxplot(sqm_lot15, main = "sqm_lot15", horizontal = TRUE)
+par(mfrow=c(1,1))
+```
+
+** lot and lot15 mantain several observations that can be considered extreme outliers. But how many? what is the percentage of the data that this observations represent? (TODO: More on this later. First, the plots to look for correlations).
+
+
+
+
+
+PLOTS OF PREDICTORS AGAINST TARGET VARIABLE
+
+```{r}
+plot(x = sqm_living, y = price)
+plot(x = sqm_lot, y = price)
+plot(x = sqm_above, y = price)
+plot(x = sqm_basement, y = price)
+plot(x = sqm_living15, y = price)
+plot(x = sqm_lot15, y = price)
+par(mfrow=c(3,2))
+plot(x = sqm_living, y = price)
+plot(x = sqm_lot, y = price)
+plot(x = sqm_above, y = price)
+plot(x = sqm_basement, y = price)
+plot(x = sqm_living15, y = price)
+plot(x = sqm_lot15, y = price)
+par(mfrow=c(1,1))
+pairs(target_sqm_df)
+```
+
+Notes:
+- living, living15 and above have a noticeable positive correlation with the target variable. However,
+- living and above also look highly correlated with each other. We might want to remove one of them for the regression.
+- basement looks problematic due to the high amount of zero values (houses that don't have a basement), and, ignoring the basement, there only seems to be a very slight positive correlation.
+
+
+REGARDING EXTREME OUTLIERS: lot and lot15
+
+```{r}
+lotXOutliersValues = boxplot.stats(sqm_lot, coef = 10)$out
+lot15XOutliersValues = boxplot.stats(sqm_lot15, coef = 10)$out
+
+lotXOutliersIndices = sqm_lot %in% lotXOutliersValues
+lot15XOutliersIndices = sqm_lot15 %in% lot15XOutliersValues
+
+botXoutliersIndices = lotXOutliersIndices | lot15XOutliersIndices
+
+cat("Count lot outliers: ", sum(lotXOutliersIndices))
+cat("\nCount lot15 outliers: ", sum(lot15XOutliersIndices))
+
+cat("\n\nPercentage lot outliers: ", mean(lotXOutliersIndices))
+cat("\nPercentage lot15 outliers: ", mean(lot15XOutliersIndices))
+
+cat("\n\nCount joint outliers: ", sum(botXoutliersIndices))
+cat("\nPercentage joint outliers: ", mean(botXoutliersIndices))
+```
+
+** The ammount of rows that would be dropped by this arbitrary measure would be of only 3% of the rows. leaving us still with more than 20k observations. However, there is no evidence that this "outliers" in this specific predictor, don't follow the trend against the target variable. (Discuss with Team).
+
+
+
+
+
+LOOKING INTO BASEMENT vs. NO BASEMENT
+
+```{r}
+# Difference in average between houses that have a basement and the ones that don't
+cat("No basement avg:", mean(price[sqm_basement == 0]))
+cat("\nWith basement avg:", mean(price[sqm_basement != 0]))
+```
+There seems to be a relatively significant difference in the averages, so we'll construct a one-hot encoded (Dummy) variable and use that one instead. (TODO: test model with and without )
+
+```{r}
+has_basement = ifelse(sqm_basement != 0, 1, 0)
+
+# Now, to gain insights into the interaction of other variables, with the presence of basement or not:
+
+livingTimesBasement = sqm_living * sqm_basement
+livingPlusBasement = sqm_living * sqm_basement
+
+
+
+```
+
+
+
+
+RUNING SOME BASIC MODELS
+
+```{r}
+
+all_cols = c("floors","waterfront","bedrooms","sqm_basement","view","bathrooms","sqm_living15","sqm_above","grade","sqm_living","price")
+
+df_allCols = dat %>% select(all_cols)
+
+model_all <- lm(log10(price) ~ df_allCols$floors + df_allCols$waterfront + df_allCols$bedrooms + df_allCols$sqm_basement + df_allCols$view + df_allCols$bathrooms + df_allCols$sqm_living15 + df_allCols$sqm_above + df_allCols$grade + df_allCols$sqm_living)
+
+model_noLiving <- lm(log10(price) ~ df_allCols$floors + df_allCols$waterfront + df_allCols$bedrooms + df_allCols$sqm_basement + df_allCols$view + df_allCols$bathrooms + df_allCols$sqm_living15 + df_allCols$sqm_above + df_allCols$grade)
+
+model_noAboveBasement <- lm(log10(price) ~ df_allCols$floors + df_allCols$waterfront + df_allCols$bedrooms + df_allCols$view + df_allCols$bathrooms + df_allCols$sqm_living15 + df_allCols$grade + df_allCols$sqm_living)
+
+
+anova(model_all, model_noLiving, model_noAboveBasement)
+
+
+print("================================= ALL =================================")
+summary(model_all)
+
+print("================================= No Living =================================")
+summary(model_noLiving)
+
+print("================================= No Above, No Basement =================================")
+summary(model_noAboveBasement)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
