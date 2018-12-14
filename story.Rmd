@@ -6,6 +6,8 @@ output: pdf_document
 ---
 
 ```{r, setup}
+library(tidyverse)
+
 dat <- read_csv("kc_house_data.csv")
 
 clean_dat <- dat %>%
