@@ -1,0 +1,66 @@
+---
+title: "Storytelling"
+author: "Janek Teders"
+date: "December 14, 2018"
+output: pdf_document
+---
+
+```{r, setup}
+dat <- read_csv("kc_house_data.csv")
+
+clean_dat <- dat %>%
+  mutate_at(
+    vars(starts_with("sqft")),
+    function(x) x * 0.092903
+  ) %>%
+  rename_at(
+    vars(starts_with("sqft")),
+    function(x) str_replace(x, "sqft", "sqm")
+  ) %>%
+  mutate(
+    week_of_year = week(date),
+    month_of_year = month(date),
+    renovated = factor(ifelse(yr_renovated > 0, "yes", "no"))
+  ) %>%
+  select(-starts_with("sqm"), starts_with("sqm"))
+```
+
+# Chapter 1: Variable selection
+
+- remove variablesbased on correlation
+
+- remove variables to reduce amount to make computation possible if necessary
+- run full model
+
+
+```{r}
+(corrs <- clean_dat %>%
+  select(-renovated, -date, -id) %>%
+  group_by(zipcode) %>%
+  mutate(mean_price_zip = mean(price)) %>%
+  ungroup %>%
+  cor(.) %>%
+  .[,1] %>%
+  abs(.) %>%
+  sort(.) %>%
+  as.matrix(., nrow(length(.))))
+
+good_corr <- corrs %>%
+  rownames(.) %>%
+  .[10:length(.)]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
