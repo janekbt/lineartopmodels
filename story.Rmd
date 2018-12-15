@@ -77,18 +77,23 @@ good_corr <- corrs %>%
 
 ```{r}
 lmo_1 <- dat_2 %>%
-  select(one_of(good_corr)) %>%
+  select(one_of(good_corr), renovated) %>%
   lm(data = ., log10(price) ~ .)
 
 lmo_2 <- dat_2 %>%
-  select(one_of(good_corr), -sqm_living) %>%
+  select(one_of(good_corr), renovated, -sqm_living) %>%
   lm(data = ., log10(price) ~ .)
 
 lmo_3 <- dat_2 %>%
-  select(one_of(good_corr), -sqm_above, -sqm_basement) %>%
+  select(one_of(good_corr), renovated, -sqm_above, -sqm_basement) %>%
   lm(data = ., log10(price) ~ .)
 
-anova(lmo_1, lmo_2, lmo_3)
+
+test <- list(lmo_1, lmo_2, lmo_3)
+sapply(test, function(x) summary(x)$adj.r.squared)
+
+
+anova(lmo_2, lmo_3)
 ```
 
 - cool thing: na's in sqm_living because it is a linear combination of sqm_above and sqm_basement
@@ -96,17 +101,11 @@ anova(lmo_1, lmo_2, lmo_3)
 
 ```{r}
 vars_1 <- good_corr[! good_corr %in% c("sqm_above", "sqm_basement")]
+dat_3 <- dat_2 %>%
+  select(one_of(vars_1), renovated) %>%
+  mutate(waterfront = factor(waterfront, labels = c("no", "yes")))
 ```
 
-```{r}
-f_mod <- dat_2 %>%
-  select(one_of(vars_1)) %>%
-  lm(data = ., log10(price) ~ .)
-  
-drop1(f_mod, test = "F")
-  
-avPlots(f_mod)
-```
 
 
 
