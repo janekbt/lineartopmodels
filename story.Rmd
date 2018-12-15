@@ -12,7 +12,7 @@ library(car)
 
 dat <- read_csv("kc_house_data.csv")
 
-clean_dat <- dat %>%
+dat_1 <- dat %>%
   mutate_at(
     vars(starts_with("sqft")),
     function(x) x * 0.092903
@@ -32,14 +32,35 @@ clean_dat <- dat %>%
 # Chapter 1: Variable selection
 
 - remove variables based on correlation
+- new variable: mean house price per zipcode
+
+```{r}
+set.seed(1234)
+full_dat<- dat_1 %>%
+  sample_n(nrow(.))
+
+first_fifth_avg <- full_dat %>%
+  slice(1:(n()/5)) %>%
+  group_by(zipcode) %>%
+  summarise(mean_price_zip = mean(price))
+
+result <- full_dat %>%
+  slice((n()/5):n()) %>%
+  left_join(., first_fifth_avg, key = zipcode) %>%
+  select(zipcode, mean_price_zip, price) 
+
+(cor(result$price, result$mean_price_zip))
+
+dat_2 <- dat_1 %>%
+  left_join(., first_fifth_avg, key = zipcode)
+```
+
+
 
 
 ```{r}
-(corrs <- clean_dat %>%
+(corrs <- dat_2 %>%
   select(-renovated, -date, -id) %>%
-  group_by(zipcode) %>%
-  mutate(mean_price_zip = mean(price)) %>%
-  ungroup %>%
   cor(.) %>%
   .[,1] %>%
   abs(.) %>%
@@ -55,15 +76,15 @@ good_corr <- corrs %>%
 - checking if we keep sqm_living or sqm_above and sqm_basement, because they consist of each other.
 
 ```{r}
-lmo_1 <- clean_dat %>%
+lmo_1 <- dat_2 %>%
   select(one_of(good_corr)) %>%
   lm(data = ., log10(price) ~ .)
 
-lmo_2 <- clean_dat %>%
+lmo_2 <- dat_2 %>%
   select(one_of(good_corr), -sqm_living) %>%
   lm(data = ., log10(price) ~ .)
 
-lmo_3 <- clean_dat %>%
+lmo_3 <- dat_2 %>%
   select(one_of(good_corr), -sqm_above, -sqm_basement) %>%
   lm(data = ., log10(price) ~ .)
 
@@ -76,8 +97,9 @@ anova(lmo_1, lmo_2, lmo_3)
 ```{r}
 vars_1 <- good_corr[! good_corr %in% c("sqm_above", "sqm_basement")]
 ```
+
 ```{r}
-f_mod <- clean_dat %>%
+f_mod <- dat_2 %>%
   select(one_of(vars_1)) %>%
   lm(data = ., log10(price) ~ .)
   
@@ -86,10 +108,6 @@ drop1(f_mod, test = "F")
 avPlots(f_mod)
 ```
 
-```{r}
-install.packages("styler")
-load(styler)
-```
 
 
 
