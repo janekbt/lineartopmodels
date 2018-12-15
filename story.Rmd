@@ -104,6 +104,8 @@ vars_1 <- good_corr[! good_corr %in% c("sqm_above", "sqm_basement")]
 dat_3 <- dat_2 %>%
   select(one_of(vars_1), renovated) %>%
   mutate(waterfront = factor(waterfront, labels = c("no", "yes")))
+
+write_csv(dat_3, "dat_3.csv")
 ```
 
 
