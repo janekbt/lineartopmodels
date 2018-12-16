@@ -100,7 +100,7 @@ anova(lmo_2, lmo_3)
 - lmo_3 (with sqm_living) performs better than lmo_2 (with sqm_above and sqm_basement)
 
 ```{r}
-vars_1 <- good_corr[! good_corr %in% c("sqm_above", "sqm_basement")]
+vars_1 <- good_corr[!good_corr %in% c("sqm_above", "sqm_basement")]
 dat_3 <- dat_2 %>%
   select(one_of(vars_1), renovated) %>%
   mutate(waterfront = factor(waterfront, labels = c("no", "yes")))
