@@ -1,0 +1,123 @@
+---
+title: "vars_finalized"
+author: "Janek Teders"
+date: "December 16, 2018"
+output: pdf_document
+---
+
+```{r}
+library(MASS)
+library(tidyverse)
+library(lubridate)
+library(car)
+library(magrittr)
+library(faraway)
+library(leaps)
+
+dat_3 <- read_csv("dat_3.csv") %>%
+  mutate(
+    renovated = as.factor(renovated),
+    waterfront = as.factor(waterfront),
+    price = log10(price)
+  )
+```
+
+# Janeks suggestions concerning florrs, bedrooms and lat
+
+- According to the BIC we're going to choose the log10 transformation of floors.
+- We'll use the log10 transformation as well on the lat variable (BIC)
+- Removing the rows with 0 bedrooms (13), because it seems unlikely and slightly improves the model and removing the house with 33 bedrooms, as this seems to be a typing error and drastically improves the model due to its huge leverage.
+- We will use the sqrt transformation of the bedrooms (BIC)
+```{r}
+dat_4 <- dat_3 %>%
+  filter(
+    bedrooms != 0 & bedrooms != 33
+  ) %>%
+  mutate(
+    floors = log10(floors),
+    bedrooms = sqrt(bedrooms)
+  )
+```
+
+# Nicolas suggestions concerning view, bathrooms and sqm_living15
+
+- add new variable wasViewed and keep view as it is (BIC)
+- bathrooms to the power of 1/5 according to best BIC
+- sqm_living15?
+
+```{r}
+dat_5 <- dat_4 %>%
+  mutate(
+    wasViewed = factor(ifelse(view > 0, 1, 0)),
+    bathrooms = bathrooms^(1/5)
+  )
+```
+
+# Niklas suggestions concerning 
+
+- log10 of mean_price_zip (BIC)
+- log10 of grade (BIC)
+- sqrt of sqm_living (BIC)
+
+```{r}
+dat_6 <- dat_5 %>%
+  mutate(
+    mean_price_zip = log10(mean_price_zip),
+    grade = log10(grade),
+    sqm_living = sqrt(sqm_living)
+  )
+```
+
+# Final comparison
+
+```{r}
+old_dat <- read_csv("kc_house_data.csv") %>%
+  filter(
+    bedrooms != 0 & bedrooms != 33
+  ) %>%
+  mutate_at(
+    vars(starts_with("sqft")),
+    function(x) x * 0.092903
+  ) %>%
+  rename_at(
+    vars(starts_with("sqft")),
+    function(x) str_replace(x, "sqft", "sqm")
+  ) %>%
+  mutate(
+    week_of_year = week(date),
+    month_of_year = month(date),
+    renovated = factor(ifelse(yr_renovated > 0, "yes", "no")),
+    waterfront = as.factor(waterfront),
+    wasViewed = factor(ifelse(view > 0, 1, 0)),
+    price = log10(price)
+  ) %>%
+  select(-starts_with("sqm"), -date, -id, starts_with("sqm"))
+
+pre_selection_model <- old_dat %>%
+  lm(data = ., price ~ .)
+
+old_model <- dat_3 %>%
+  lm(data = ., price ~ .)
+
+trans_model <- dat_6 %>%
+  lm(data = ., price ~ .)
+
+
+summary(pre_selection_model)
+BIC(pre_selection_model, old_model, trans_model)
+#anova(pre_selection_model, old_model, trans_model)
+
+nrow(old_dat)
+nrow(dat_6)
+nrow(dat_3)
+```
+
+# k-fold validation
+## 5
+```{r}
+install.packages("disdat")
+library(disdat)
+k <- 5
+kFold
+```
+
