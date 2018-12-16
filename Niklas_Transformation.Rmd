@@ -1,0 +1,165 @@
+```{r}
+library(lubridate)
+library(car)
+library(MASS)
+library(tidyverse)
+
+dat_3 <- read_csv("dat_3.csv") %>%
+  mutate(renovated = as.factor(renovated),
+         waterfront = as.factor(waterfront))
+```
+
+```{r}
+fm <- dat_3 %>%
+  lm(data = ., log(price) ~ .)
+```
+
+```{r mean_price_zip}
+ggplot(dat_3, aes(x = mean_price_zip)) +
+ geom_histogram()
+
+truehist(dat_3$mean_price_zip)
+
+#Unique
+dat_3$mean_price_zip %>%
+  sort(.) %>%
+  unique(.)
+
+# Leverage
+dat_3 %>%
+  lm(data = ., log10(price) ~ mean_price_zip) %>%
+  lm.influence(.) %>%
+  .$hat %>%
+  plot(.)
+
+dat_3 %>%
+  lm(data = ., log10(price) ~ log10(mean_price_zip)) %>%
+  lm.influence(.) %>%
+  .$hat %>%
+  plot(.)
+
+
+# Full model with transformed mean_price_zip
+fm_sqrt_mpz <- dat_3 %>%
+  lm(data = ., log(price) ~ . - mean_price_zip + sqrt(mean_price_zip))
+
+fm_log_mpz <- dat_3 %>%
+  lm(data = ., log(price) ~ . - mean_price_zip + log(mean_price_zip))
+
+fm_log10_mpz <- dat_3 %>%
+  lm(data = ., log(price) ~ . - mean_price_zip + log10(mean_price_zip)) # Winner
+
+fm_sq2_mpz <- dat_3 %>%
+  lm(data = ., log(price) ~ . - mean_price_zip + (mean_price_zip)^2)
+
+fm_sq3_mpz <- dat_3 %>%
+  lm(data = ., log(price) ~ . - mean_price_zip + (mean_price_zip)^3)
+
+
+# BIC for full model and full model with transformed mean_price_zip
+BIC(fm,fm_sqrt_mpz, fm_log_mpz, fm_log10_mpz, fm_sq2_mpz,fm_sq3_mpz)
+
+
+#Single model with log10(mean_price_zip)
+dat_3 %>%
+  lm(data=.,log10(price) ~ log10(mean_price_zip)) %>%
+  plot(.)
+```
+
+```{r grade}
+ggplot(dat_3, aes(x = grade)) +
+ geom_histogram()
+
+truehist(dat_3$grade)
+truehist(log(dat_3$grade))
+truehist(log10(dat_3$grade))
+
+dat_3$grade[dat_3$grade==13]
+
+#Leverage
+dat_3 %>%
+  lm(data = ., log10(price) ~ grade) %>%
+  lm.influence(.) %>%
+  .$hat %>%
+  plot(.)
+
+dat_3 %>%
+  slice(19453)
+
+
+# Full model with transformed grade
+fm_sqrt_grade <- dat_3 %>%
+  lm(data = ., log(price) ~ . - grade + sqrt(grade))
+
+fm_log_grade <- dat_3 %>%
+  lm(data = ., log(price) ~ . - grade + log(grade))
+
+fm_log10_grade <- dat_3 %>%
+  lm(data = ., log(price) ~ . - grade + log10(grade)) # Winner
+
+fm_sq2_grade <- dat_3 %>%
+  lm(data = ., log(price) ~ . - grade + (grade)^2)
+
+fm_sq3_grade <- dat_3 %>%
+  lm(data = ., log(price) ~ . - grade + (grade)^3)
+
+# BIC
+BIC(fm,fm_sqrt_grade, fm_log_grade,fm_log10_grade,fm_sq2_grade,fm_sq3_grade)
+
+
+# Single model with log10(grade)
+dat_3 %>%
+  lm(data=., log10(price) ~ log10(grade)) %>%
+  plot(.)
+```
+
+```{r sqm living}
+ggplot(dat_3, aes(x = sqm_living)) +
+ geom_histogram()
+
+truehist(log(dat_3$sqm_living))
+truehist(sqrt(dat_3$sqm_living))
+
+#Leverage
+dat_3 %>%
+  lm(data = ., log10(price) ~ sqrt(sqm_living)) %>%
+  lm.influence(.) %>%
+  .$hat %>%
+  plot(.)
+
+# Full model with transformed sqm_living
+fm_sqrt_sqm_living <- dat_3 %>%
+  lm(data = ., log(price) ~ . - sqm_living + sqrt(sqm_living)) #Winner
+
+fm_log_sqm_living <- dat_3 %>%
+  lm(data = ., log(price) ~ . - sqm_living + log(sqm_living))
+
+fm_log10_sqm_living <- dat_3 %>%
+  lm(data = ., log(price) ~ . - sqm_living + log10(sqm_living))
+
+fm_sq2_sqm_living <- dat_3 %>%
+  lm(data = ., log(price) ~ . - sqm_living + (sqm_living)^2)
+
+fm_sq3_sqm_living <- dat_3 %>%
+  lm(data = ., log(price) ~ . - sqm_living + (sqm_living)^3)
+
+#BIC
+BIC(fm,fm_sqrt_sqm_living,fm_log_sqm_living,fm_log10_sqm_living,fm_sq2_sqm_living,fm_sq3_sqm_living)
+
+
+# Single model with sqrt(sqm_living)
+dat_3 %>%
+  lm(data=., log10(price) ~ sqrt(sqm_living)) %>%
+  plot(.)
+```
+
+```{r Mutate mean_price_zip, grade, sqm_lving}
+dat_4 <- dat_3 %>%
+  mutate(
+    mean_price_zip = log10(mean_price_zip),
+    grade = log10(grade),
+    sqm_living = sqrt(sqm_living)
+  )
+
+stepAIC(fm, direction = "forward")
+
