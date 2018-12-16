@@ -1,0 +1,38 @@
+---
+title: "Linear top models"
+subtitle: "A predictive model of house prices in King County, USA"
+author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
+date: "December 16, 2018"
+output: 
+  ioslides_presentation:
+    widescreen: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+```
+
+## R Markdown
+
+- stuff
+
+
+## Slide with Bullets
+
+- Bullet 1
+- Bullet 2
+- Bullet 3
+
+## Slide with R Output
+
+```{r cars, echo = TRUE}
+summary(cars)
+```
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+
