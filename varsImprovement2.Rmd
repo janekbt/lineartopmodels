@@ -150,12 +150,24 @@ boxplot(bathrooms, main = "bathrooms IQR", horizontal = TRUE)
 par(mfrow=c(1,1))
 ```
 
-2.1) Checking the outliers count for IQRx3, IQRx5, IQRx10
+2.1) Checking the outliers count for IQRx1.5, IQRx3, IQRx5, IQRx10
 
 ```{r}
+outliersCount_2_1 = length(boxplot.stats(bathrooms, coef = 1.5)$out)
+outliersCount_2_3 = length(boxplot.stats(bathrooms, coef = 3)$out)
+outliersCount_2_5 = length(boxplot.stats(bathrooms, coef = 5)$out)
+outliersCount_2_10 = length(boxplot.stats(bathrooms, coef = 10)$out)
+
+cat("IQRx1.5 count: ", outliersCount_2_1)
+cat("\nIQRx3 count: ", outliersCount_2_3)
+cat("\nIQRx5 count: ", outliersCount_2_5)
+cat("\nIQRx10 count: ", outliersCount_2_10)
 
 ```
 
+What to do? 
+
+- Values that are more than 3 IQR are already pretty far from the median, and in this case there are only 
 
 
 
@@ -278,9 +290,178 @@ F-statistic:  8724 on 12 and 21600 DF,  p-value: < 2.2e-16
 
 
 
-1.4) CONCLUSIONS:
+2.4) CONCLUSIONS:
 
-Using both of the columns (the original view and the derivated wasViewed), yields lower RSS, higher Adj. R-squared, lower AIC and lowe BIC. For these reasons, we'll keep both of them in the model.
+After attempting several transformations
+
+Transforming to the power of 1/5, yields lower RSS, higher Adj. R-squared, lower AIC and lowe BIC. For these reasons, we'll go for this transformation.
+
+
+
+
+
+
+***************************************************
+3) SQM_LIVING15
+***************************************************
+
+3.0) Plotting distributions
+
+```{r}
+par(mfrow=c(1,1))
+truehist(sqm_living15, main = "sqm_living15")
+plot(x = sqm_living15, y = price, main = "Price vs sqm_living15")
+qqView = qqPlot(sqm_living15, main = "sqm_living15")
+boxplot(sqm_living15, main = "sqm_living15 IQRx10", horizontal = TRUE, range = 10)
+boxplot(sqm_living15, main = "sqm_living15 IQR", horizontal = TRUE)
+par(mfrow=c(1,1))
+```
+
+3.1) Checking the outliers count for IQRx1.5, IQRx3, IQRx5, IQRx10
+
+```{r}
+outliersCount_3_1 = length(boxplot.stats(sqm_living15, coef = 1.5)$out)
+outliersCount_3_3 = length(boxplot.stats(sqm_living15, coef = 3)$out)
+outliersCount_3_5 = length(boxplot.stats(sqm_living15, coef = 5)$out)
+outliersCount_3_10 = length(boxplot.stats(sqm_living15, coef = 10)$out)
+
+cat("IQRx1.5 count: ", outliersCount_3_1)
+cat("\nIQRx3 count: ", outliersCount_3_3)
+cat("\nIQRx5 count: ", outliersCount_3_5)
+cat("\nIQRx10 count: ", outliersCount_3_10)
+```
+
+
+3.2) Plotting QQ-plots
+```{r}
+qqView = qqPlot(sqm_living15, main = "sqm_living15")
+qqView = qqPlot(sqm_living15^(1/5), main = "sqm_living15")
+qqView = qqPlot(sqm_living15^(1/4), main = "sqm_living15")
+qqView = qqPlot(sqm_living15^(1/3), main = "sqm_living15")
+qqView = qqPlot(sqm_living15^(1/2), main = "sqm_living15")
+qqView = qqPlot(log(sqm_living15), main = "sqm_living15")
+qqView = qqPlot(log10(sqm_living15), main = "sqm_living15")
+```
+
+
+
+3.3) Run models with each of the possibilities and comparing metrics.
+
+**Keep using dat_3_1 with the newly added variable
+
+```{r}
+# Without this column
+lm3_0 = dat_3_1 %>%
+  select(-sqm_living15) %>%
+  lm( data = . , price ~ .)
+
+# Without transforming
+lm3_1 = dat_3_1 %>%
+  lm( data = . , price ~ .)
+
+# Transforming to the power of 1/5
+lm3_2 = dat_3_1 %>%  
+  mutate(sqm_living15^(1/5)) %>%
+  select(-sqm_living15) %>%
+  lm( data = . , price ~ .)
+
+# Transforming to the power of 1/4
+lm3_3 = dat_3_1 %>%  
+  mutate(sqm_living15^(1/4)) %>%
+  select(-sqm_living15) %>%
+  lm( data = . , price ~ .)
+
+# Transforming to the power of 1/3
+lm3_4 = dat_3_1 %>%  
+  mutate(sqm_living15^(1/3)) %>%
+  select(-sqm_living15) %>%
+  lm( data = . , price ~ .)
+
+# Transforming to the power of 1/2
+lm3_5 = dat_3_1 %>%  
+  mutate(sqm_living15^(1/2)) %>%
+  select(-sqm_living15) %>%
+  lm( data = . , price ~ .)
+
+# Transforming to the power of log
+lm3_6 = dat_3_1 %>%  
+  mutate(log(sqm_living15)) %>%
+  select(-sqm_living15) %>%
+  lm( data = . , price ~ .)
+
+
+#summary(lm3_0)
+#summary(lm3_1)
+#summary(lm3_2)
+#summary(lm3_3)
+#summary(lm3_4)
+#summary(lm3_5)
+#summary(lm3_6)
+
+AIC(lm3_0, lm3_1, lm3_2, lm3_3, lm3_4, lm3_5, lm3_6)
+
+BIC(lm3_0, lm3_1, lm3_2, lm3_3, lm3_4, lm3_5, lm3_6)
+```
+
+Results:
+
+# Without this column
+Residual standard error: 0.2182 on 21601 degrees of freedom
+Multiple R-squared:  0.8285,	Adjusted R-squared:  0.8284 
+F-statistic:  9484 on 11 and 21601 DF,  p-value: < 2.2e-16
+
+# Without transforming
+Residual standard error: 0.218 on 21600 degrees of freedom
+Multiple R-squared:  0.8287,	Adjusted R-squared:  0.8286 
+F-statistic:  8710 on 12 and 21600 DF,  p-value: < 2.2e-16
+
+# Transforming to the power of 1/5
+Residual standard error: 0.2177 on 21600 degrees of freedom
+Multiple R-squared:  0.8293,	Adjusted R-squared:  0.8292 
+F-statistic:  8744 on 12 and 21600 DF,  p-value: < 2.2e-16
+
+# Transforming to the power of 1/4
+Residual standard error: 0.2177 on 21600 degrees of freedom
+Multiple R-squared:  0.8292,	Adjusted R-squared:  0.8291 
+F-statistic:  8741 on 12 and 21600 DF,  p-value: < 2.2e-16
+
+# Transforming to the power of 1/3
+Residual standard error: 0.2177 on 21600 degrees of freedom
+Multiple R-squared:  0.8292,	Adjusted R-squared:  0.8291 
+F-statistic:  8737 on 12 and 21600 DF,  p-value: < 2.2e-16
+
+# Transforming to the power of 1/2
+Residual standard error: 0.2178 on 21600 degrees of freedom
+Multiple R-squared:  0.8291,	Adjusted R-squared:  0.829 
+F-statistic:  8729 on 12 and 21600 DF,  p-value: < 2.2e-16
+
+# Transforming to the power of log
+Residual standard error: 0.2176 on 21600 degrees of freedom
+Multiple R-squared:  0.8294,	Adjusted R-squared:  0.8293 
+F-statistic:  8753 on 12 and 21600 DF,  p-value: < 2.2e-16
+
+
+
+2.4) CONCLUSIONS:
+
+After attempting several transformations
+
+Transforming using log(), yields lower RSS, higher Adj. R-squared, lower AIC and lowe BIC. For these reasons, we'll go for this transformation.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
