@@ -27,22 +27,22 @@ knitr::opts_chunk$set(echo = FALSE)
 library(kableExtra)
 options("kableExtra.html.bsTable" = T)
 
-dat <- readRDS("dat_6.rds")
-dat_old <- read_csv("kc_house_data.csv")
+raw_data <- readRDS("raw_data.rds")
+full_data <- readRDS("full_data.rds")
+full_data_woo <- readRDS("full_data_woo.rds")
 ```
 
 ## The dataset
 
 - Houses sold between May 2014 and May 2015
-- Observations: **`r nrow(dat_old)`**
-- Variables: **`r ncol(dat_old)`**
+- Observations: **`r nrow(raw_data)`**
+- Variables: **`r ncol(raw_data)`**
 
-gonna add pic right here...
 
 ## Variables
 
 ```{r echo=FALSE}
-matrix(colnames(dat_old), ncol = 3) %>%
+matrix(colnames(raw_data), ncol = 3) %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
@@ -51,9 +51,9 @@ matrix(colnames(dat_old), ncol = 3) %>%
 
 ```{r echo=FALSE}
 par(mfrow = c(1,2))
-truehist(dat_old$price,
+truehist(raw_data$price,
          xlab = "price")
-a <- qqPlot(dat_old$price,
+a <- qqPlot(raw_data$price,
             xlab = "quantiles",
             ylab = "")
 ```
@@ -62,9 +62,9 @@ a <- qqPlot(dat_old$price,
 
 ```{r echo=FALSE}
 par(mfrow = c(1,2))
-truehist(log10(dat_old$price),
+truehist(log10(raw_data$price),
          xlab = "price")
-a <- qqPlot(log10(dat_old$price),
+a <- qqPlot(log10(raw_data$price),
             xlab = "quantiles",
             ylab = "")
 ```
@@ -76,6 +76,7 @@ a <- qqPlot(log10(dat_old$price),
     + $AIC$
     + $BIC$
     + $R^2_{adj.}$
+    + $RMSE$
 
 ## Preliminary data formating
 
@@ -84,29 +85,14 @@ a <- qqPlot(log10(dat_old$price),
   - **square feet** into **square meters**
   - waterfront and renovated into a **factor** variable
   - log10 of price (response variable)
+  - split date into week and month of the year
 
 
 ```{r}
-dat_old_1 <- dat_old %>%
-  mutate_at(
-    vars(starts_with("sqft")),
-    function(x) x * 0.092903
-  ) %>%
-  rename_at(
-    vars(starts_with("sqft")),
-    function(x) str_replace(x, "sqft", "sqm")
-  ) %>%
-  mutate(
-    waterfront = factor(waterfront),
-    price = log10(price),
-    renovated = factor(ifelse(yr_renovated > 0, "yes", "no"))
-    ) %>%
-  dplyr::select(-id)
+data_wo_new_vars <- full_data %>%
+  select(-wasViewed, -renovated, -mean_price_zip)
 
-lmo_1 <- lm(price ~ . -date, data = dat_old_1)
-
-result_1 <- summary(lmo_1)
-
+model_1 <- lm(price ~ ., data = data_wo_new_vars)
 ```
 
 ## First model {.flexbox .vcenter}
@@ -118,9 +104,9 @@ knitr::include_graphics("screenshots/summary_2.png")
 ```
 
 ```{r include=FALSE}
-a <- round(result_1$adj.r.squared, 4)
-b <- round(AIC(lmo_1), 4)
-c <- round(BIC(lmo_1), 4)
+a <- round(summary(model_1)$adj.r.squared, 4)
+b <- round(AIC(model_1), 4)
+c <- round(BIC(model_1), 4)
 ```
 
 
@@ -134,38 +120,70 @@ c <- round(BIC(lmo_1), 4)
 ## Outliers
 
 ```{r echo=FALSE, fig.align = "center"}
-plot(lmo_1, which=5)
+par(mfrow = c(1,2))
+plot(model_1, which=5)
+plot(model_1, which=4)
 ```
-
-## Track outliers down
-
-```{r, fig.align = "center"}
-boxplot(dat_old_1$bedrooms, horizontal = T, main = "bedrooms")
-```
-
-- Additionally, testing with removal of observations with zero bedrooms. 
 
 ## Post outlier removal comparison
 
 ```{r warning=FALSE}
-lmo_excluding_33 <- dat_old_1 %>%
-  filter(bedrooms < 15) %>%
-  lm(data = . , price ~ . -date)
+intermediate_1 <- full_data_woo %>%
+  select(-wasViewed, -renovated, -mean_price_zip)
 
-lmo_excluding_outlier <- dat_old_1 %>%
-  filter(bedrooms < 15 & bedrooms > 0) %>%
-  lm(data = ., price ~ . -date)
+model_2 <- intermediate_1 %>%
+  lm(data = . , price ~ .)
 
-AIC(lmo_1, lmo_excluding_33, lmo_excluding_outlier) %>%
+B <- 10
+k <- 10
+n <- nrow(intermediate_1)
+folds <- sample(rep(c(1:k), length.out = nrow(intermediate_1)))
+results <- matrix(0, nrow = k, ncol = B)
+for (b in 1:B){
+  for (i in 1:k) {
+    training <- intermediate_1[folds != i,]
+    test <- intermediate_1[folds == i,]
+
+    lmo <- lm(data = training, price ~ .)
+    predict <- predict(lmo, test)
+    
+    results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+  }
+}
+model_2_mrmse <- mean(sqrt(results))
+model_2_sdrmse <- sd(sqrt(results))
+
+intermediate_2 <- data_wo_new_vars
+
+B <- 10
+k <- 10
+n <- nrow(intermediate_2)
+folds <- sample(rep(c(1:k), length.out = nrow(intermediate_2)))
+results <- matrix(0, nrow = k, ncol = B)
+for (b in 1:B){
+  for (i in 1:k) {
+    training <- intermediate_2[folds != i,]
+    test <- intermediate_2[folds == i,]
+
+    lmo <- lm(data = training, price ~ .)
+    predict <- predict(lmo, test)
+    
+    results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+  }
+}
+model_1_mrmse <- mean(sqrt(results))
+model_1_sdrmse <- sd(sqrt(results))
+
+Mean_RMSE <- rbind(model_1_mrmse, model_2_mrmse)
+SD_RMSE <- rbind(model_1_sdrmse, model_2_sdrmse)
+
+cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE) %>%
   kable() %>%
   kable_styling()
-
 ```
 
 * Observations:
-    + Dropping extreme outlier slightly improves the model
-    + Dropping zero-valued observations adds no value to the model
-
+    + Dropping extreme outlier improves the model
 
 ## Creating new variables
 
@@ -173,58 +191,58 @@ AIC(lmo_1, lmo_excluding_33, lmo_excluding_outlier) %>%
     + sampling 20% of the data
     + computing average price by zipcode
     + adding computed averages to remaining 80%
-      
-* Date related columns
-    + creating weeks and months of the year
 
-```{r include=FALSE}
-dat_old_2 <- dat_old_1 %>%
-  mutate_at(
-    vars(starts_with("sqft")),
-    function(x) x * 0.092903
-  ) %>%
-  rename_at(
-    vars(starts_with("sqft")),
-    function(x) str_replace(x, "sqft", "sqm")
-  ) %>%
-  mutate(
-    week_of_year = week(date),
-    month_of_year = month(date)
-  ) %>%
-  dplyr::select(-starts_with("sqm"), starts_with("sqm"), -date)
+* Factorize:
+    + view variable into viewed or not viewed
+    + year_renovated into was renovated at all or not
+
+* Still keeping the untransformed data
+
+```{r}
+intermediate_3 <- full_data_woo
+model_3 <- lm(price ~ ., data = intermediate_3)
 
 
+B <- 10
+k <- 10
+n <- nrow(intermediate_3)
+folds <- sample(rep(c(1:k), length.out = nrow(intermediate_3)))
+results <- matrix(0, nrow = k, ncol = B)
+for (b in 1:B){
+  for (i in 1:k) {
+    training <- intermediate_3[folds != i,]
+    test <- intermediate_3[folds == i,]
 
+    lmo <- lm(data = training, price ~ .)
+    predict <- predict(lmo, test)
+    
+    results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+  }
+}
+model_3_mrmse <- mean(sqrt(results))
+model_3_sdrmse <- sd(sqrt(results))
 
-set.seed(1234)
-dat_old_2_shuffled<- dat_old_2 %>%
-  sample_n(nrow(.))
+Mean_RMSE <- rbind(model_2_mrmse, model_3_mrmse)
+SD_RMSE <- rbind(model_2_sdrmse, model_3_sdrmse)
 
-first_fifth_avg <- dat_old_2_shuffled %>%
-  slice(1:(n()/5)) %>%
-  group_by(zipcode) %>%
-  summarise(mean_price_zip = mean(price))
-
-result <- dat_old_2_shuffled %>%
-  slice((n()/5):n()) %>%
-  left_join(., first_fifth_avg, key = zipcode)
-
+cbind(AIC(model_2, model_3), Mean_RMSE, SD_RMSE) %>%
+  kable() %>%
+  kable_styling()
 ```
-
-
 
 ## Variable preselection (Part I)
 
 ### Correlation analysis 
 
 ```{r echo=FALSE, warning=FALSE}
-corrs <- result %>%
-   dplyr::select(-waterfront, -renovated) %>%
+corrs <- full_data %>%
+  dplyr::select(-waterfront, -renovated, - wasViewed) %>%
   cor(.) %>%
   .[,1] %>%
   abs(.) %>%
   sort(.) %>%
   as.matrix(., nrow(length(.)))
+
 
 good_corr <- corrs %>%
   rownames(.) %>%
@@ -249,16 +267,37 @@ cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
 
 
 
-## Second model
+## Fourth model
 
-```{r}
+```{r warning=FALSE}
 
-dat_new_1 <- result %>%
-  dplyr::select(one_of(good_corr), renovated, waterfront)
+intermediate_4 <- full_data_woo %>%
+  dplyr::select(one_of(good_corr), renovated, waterfront, wasViewed)
 
-lmo_2 <- lm(price ~ ., data = dat_new_1)
+model_4 <- lm(price ~ ., data = intermediate_4)
 
-s_lmo_2 <- summary(lmo_2)
+s_lmo_2 <- summary(model_4)
+
+#drop1(model_3)
+
+B <- 10
+k <- 10
+n <- nrow(intermediate_4)
+folds <- sample(rep(c(1:k), length.out = nrow(intermediate_4)))
+results <- matrix(0, nrow = k, ncol = B)
+for (b in 1:B){
+  for (i in 1:k) {
+    training <- intermediate_4[folds != i,]
+    test <- intermediate_4[folds == i,]
+
+    lmo <- lm(data = training, price ~ .)
+    predict <- predict(lmo, test)
+    
+    results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+  }
+}
+model_4_mrmse <- mean(sqrt(results))
+model_4_sdrmse <- sd(sqrt(results))
 ```
 
 
