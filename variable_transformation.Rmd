@@ -1,0 +1,435 @@
+---
+title: "transformation"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+full_data_woo <- readRDS("full_data_woo.rds")
+colnames(full_data_woo)
+```
+
+```{r bedrooms}
+fm_bedrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bedrooms + bedrooms)
+
+fm_sqrt_bedrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bedrooms + sqrt(bedrooms))
+
+fm_log10_bedrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bedrooms + bedrooms)
+
+fm_sq2_bedrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bedrooms + (bedrooms)^2)
+
+fm_sq3_bedrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bedrooms + (bedrooms)^3)
+
+BIC(fm_bedrooms,fm_sqrt_bedrooms,fm_log10_bedrooms,fm_sq2_bedrooms,fm_sq3_bedrooms)
+```
+
+```{r bathrooms}
+
+fm_bathrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bathrooms + bathrooms)
+
+fm_sqrt_bathrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bathrooms + sqrt(bathrooms))
+
+fm_sq2_bathrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bathrooms + (bathrooms)^(.2))
+
+fm_sq3_bathrooms <- full_data_woo %>%
+  lm(data = ., price ~ . - bathrooms + (bathrooms)^3)
+
+BIC(fm_bathrooms,fm_sqrt_bathrooms,fm_sq2_bathrooms,fm_sq3_bathrooms)
+```
+
+```{r floors}
+fm_floors <- full_data_woo %>%
+  lm(data = ., price ~ . - floors + floors)
+
+fm_sqrt_floors <- full_data_woo %>%
+  lm(data = ., price ~ . - floors + sqrt(floors))
+
+fm_log10_floors <- full_data_woo %>%
+  lm(data = ., price ~ . - floors + log10(floors))
+
+fm_sq2_floors <- full_data_woo %>%
+  lm(data = ., price ~ . - floors + (floors)^2)
+
+fm_sq3_floors <- full_data_woo %>%
+  lm(data = ., price ~ . - floors + (floors)^3)
+
+BIC(fm_floors,fm_sqrt_floors,fm_log10_floors,fm_sq2_floors,fm_sq3_floors)
+```
+
+```{r waterfront}
+fm_waterfront <- full_data_woo %>%
+  lm(data = ., price ~ . - waterfront + waterfront)
+
+fm_sqrt_waterfront <- full_data_woo %>%
+  lm(data = ., price ~ . - waterfront + sqrt(waterfront))
+
+fm_log10_waterfront <- full_data_woo %>%
+  lm(data = ., price ~ . - waterfront + log10(waterfront))
+
+fm_sq2_waterfront <- full_data_woo %>%
+  lm(data = ., price ~ . - waterfront + (waterfront)^2)
+
+fm_sq3_waterfront <- full_data_woo %>%
+  lm(data = ., price ~ . - waterfront + (waterfront)^3)
+
+BIC(fm_waterfront,fm_sqrt_waterfront,fm_log10_waterfront,fm_sq2_waterfront,fm_sq3_waterfront)
+```
+
+```{r view}
+fm_view <- full_data_woo %>%
+  lm(data = ., price ~ . - view + view)
+
+fm_sqrt_view <- full_data_woo %>%
+  lm(data = ., price ~ . - view + sqrt(view))
+
+fm_log10_view <- full_data_woo %>%
+  lm(data = ., price ~ . - view + view)
+
+fm_sq2_view <- full_data_woo %>%
+  lm(data = ., price ~ . - view + (view)^2)
+
+fm_sq3_view <- full_data_woo %>%
+  lm(data = ., price ~ . - view + (view)^3)
+
+BIC(fm_view,fm_sqrt_view,fm_log10_view,fm_sq2_view,fm_sq3_view)
+```
+
+```{r condition}
+fm_condition <- full_data_woo %>%
+  lm(data = ., price ~ . - condition + condition)
+
+fm_sqrt_condition <- full_data_woo %>%
+  lm(data = ., price ~ . - condition + sqrt(condition))
+
+fm_log10_condition <- full_data_woo %>%
+  lm(data = ., price ~ . - condition + log10(condition))
+
+fm_sq2_condition <- full_data_woo %>%
+  lm(data = ., price ~ . - condition + (condition)^2)
+
+fm_sq3_condition <- full_data_woo %>%
+  lm(data = ., price ~ . - condition + (condition)^3)
+
+BIC(fm_condition,fm_sqrt_condition,fm_log10_condition,fm_sq2_condition,fm_sq3_condition)
+```
+
+```{r grade}
+fm_grade <- full_data_woo %>%
+  lm(data = ., price ~ . - grade + grade)
+
+fm_sqrt_grade <- full_data_woo %>%
+  lm(data = ., price ~ . - grade + sqrt(grade))
+
+fm_log10_grade <- full_data_woo %>%
+  lm(data = ., price ~ . - grade + log10(grade))
+
+fm_sq2_grade <- full_data_woo %>%
+  lm(data = ., price ~ . - grade + (grade)^2)
+
+fm_sq3_grade <- full_data_woo %>%
+  lm(data = ., price ~ . - grade + (grade)^3)
+
+BIC(fm_grade,fm_sqrt_grade,fm_log10_grade,fm_sq2_grade,fm_sq3_grade)
+```
+
+```{r yr_built}
+fm_yr_built <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_built + yr_built)
+
+fm_sqrt_yr_built <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_built + sqrt(yr_built))
+
+fm_log10_yr_built <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_built + log10(yr_built))
+
+fm_sq2_yr_built <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_built + (yr_built)^2)
+
+fm_sq3_yr_built <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_built + (yr_built)^3)
+
+BIC(fm_yr_built,fm_sqrt_yr_built,fm_log10_yr_built,fm_sq2_yr_built,fm_sq3_yr_built)
+```
+
+```{r yr_renovated}
+fm_yr_renovated <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_renovated + yr_renovated)
+
+fm_sqrt_yr_renovated <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_renovated + sqrt(yr_renovated))
+
+fm_sq2_yr_renovated <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_renovated + (yr_renovated)^2)
+
+fm_sq3_yr_renovated <- full_data_woo %>%
+  lm(data = ., price ~ . - yr_renovated + (yr_renovated)^3)
+
+BIC(fm_yr_renovated,fm_sqrt_yr_renovated,fm_sq2_yr_renovated,fm_sq3_yr_renovated)
+```
+
+```{r zipcode}
+fm_zipcode <- full_data_woo %>%
+  lm(data = ., price ~ . - zipcode + zipcode)
+
+fm_sqrt_zipcode <- full_data_woo %>%
+  lm(data = ., price ~ . - zipcode + sqrt(zipcode))
+
+fm_log10_zipcode <- full_data_woo %>%
+  lm(data = ., price ~ . - zipcode + log10(zipcode))
+
+fm_sq2_zipcode <- full_data_woo %>%
+  lm(data = ., price ~ . - zipcode + (zipcode)^2)
+
+fm_sq3_zipcode <- full_data_woo %>%
+  lm(data = ., price ~ . - zipcode + (zipcode)^3)
+
+BIC(fm_zipcode,fm_sqrt_zipcode,fm_log10_zipcode,fm_sq2_zipcode,fm_sq3_zipcode)
+```
+
+```{r lat}
+fm_lat <- full_data_woo %>%
+  lm(data = ., price ~ . - lat + lat)
+
+fm_sqrt_lat <- full_data_woo %>%
+  lm(data = ., price ~ . - lat + sqrt(lat))
+
+fm_log10_lat <- full_data_woo %>%
+  lm(data = ., price ~ . - lat + log10(lat))
+
+fm_sq2_lat <- full_data_woo %>%
+  lm(data = ., price ~ . - lat + (lat)^2)
+
+fm_sq3_lat <- full_data_woo %>%
+  lm(data = ., price ~ . - lat + (lat)^3)
+
+BIC(fm_lat,fm_sqrt_lat,fm_log10_lat,fm_sq2_lat,fm_sq3_lat)
+```
+
+```{r long}
+fm_long <- full_data_woo %>%
+  lm(data = ., price ~ . - long + long)
+
+
+fm_sq2_long <- full_data_woo %>%
+  lm(data = ., price ~ . - long + (long)^2)
+
+fm_sq3_long <- full_data_woo %>%
+  lm(data = ., price ~ . - long + (long)^3)
+
+BIC(fm_long,fm_sq2_long,fm_sq3_long)
+```
+
+```{r week_of_year}
+fm_week_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - week_of_year + week_of_year)
+
+fm_sqrt_week_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - week_of_year + sqrt(week_of_year))
+
+fm_log10_week_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - week_of_year + log10(week_of_year))
+
+fm_sq2_week_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - week_of_year + (week_of_year)^2)
+
+fm_sq3_week_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - week_of_year + (week_of_year)^3)
+
+BIC(fm_week_of_year,fm_sqrt_week_of_year,fm_log10_week_of_year,fm_sq2_week_of_year,fm_sq3_week_of_year)
+```
+
+```{r month_of_year}
+fm_month_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - month_of_year + month_of_year)
+
+fm_sqrt_month_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - month_of_year + sqrt(month_of_year))
+
+fm_log10_month_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - month_of_year + log10(month_of_year))
+
+fm_sq2_month_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - month_of_year + (month_of_year)^2)
+
+fm_sq3_month_of_year <- full_data_woo %>%
+  lm(data = ., price ~ . - month_of_year + (month_of_year)^3)
+
+BIC(fm_month_of_year,fm_sqrt_month_of_year,fm_log10_month_of_year,fm_sq2_month_of_year,fm_sq3_month_of_year)
+```
+
+```{r renovated}
+fm_renovated <- full_data_woo %>%
+  lm(data = ., price ~ . - renovated + renovated)
+
+
+fm_sq2_renovated <- full_data_woo %>%
+  lm(data = ., price ~ . - renovated + (renovated)^2)
+
+fm_sq3_renovated <- full_data_woo %>%
+  lm(data = ., price ~ . - renovated + (renovated)^3)
+
+BIC(fm_renovated,fm_sq2_renovated,fm_sq3_renovated)
+```
+
+```{r wasViewed}
+fm_wasViewed <- full_data_woo %>%
+  lm(data = ., price ~ . - wasViewed + wasViewed)
+
+fm_sqrt_wasViewed <- full_data_woo %>%
+  lm(data = ., price ~ . - wasViewed + sqrt(wasViewed))
+
+fm_log10_wasViewed <- full_data_woo %>%
+  lm(data = ., price ~ . - wasViewed + log10(wasViewed))
+
+fm_sq2_wasViewed <- full_data_woo %>%
+  lm(data = ., price ~ . - wasViewed + (wasViewed)^2)
+
+fm_sq3_wasViewed <- full_data_woo %>%
+  lm(data = ., price ~ . - wasViewed + (wasViewed)^3)
+
+BIC(fm_wasViewed,fm_sqrt_wasViewed,fm_log10_wasViewed,fm_sq2_wasViewed,fm_sq3_wasViewed)
+```
+
+```{r sqm_living}
+fm_sqm_living <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living + sqm_living)
+
+fm_sqrt_sqm_living <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living + sqrt(sqm_living))
+
+fm_log10_sqm_living <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living + log10(sqm_living))
+
+fm_sq2_sqm_living <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living + (sqm_living)^2)
+
+fm_sq3_sqm_living <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living + (sqm_living)^3)
+
+BIC(fm_sqm_living,fm_sqrt_sqm_living,fm_log10_sqm_living,fm_sq2_sqm_living,fm_sq3_sqm_living)
+```
+
+```{r sqm_lot}
+fm_sqm_lot <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot + sqm_lot)
+
+fm_sqrt_sqm_lot <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot + sqrt(sqm_lot))
+
+fm_log10_sqm_lot <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot + log10(sqm_lot))
+
+fm_sq2_sqm_lot <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot + (sqm_lot)^2)
+
+fm_sq3_sqm_lot <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot + (sqm_lot)^3)
+
+BIC(fm_sqm_lot,fm_sqrt_sqm_lot,fm_log10_sqm_lot,fm_sq2_sqm_lot,fm_sq3_sqm_lot)
+```
+
+```{r sqm_above}
+fm_sqm_above <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_above + sqm_above)
+
+fm_sqrt_sqm_above <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_above + sqrt(sqm_above))
+
+fm_log10_sqm_above <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_above + log10(sqm_above))
+
+fm_sq2_sqm_above <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_above + (sqm_above)^2)
+
+fm_sq3_sqm_above <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_above + (sqm_above)^3)
+
+BIC(fm_sqm_above,fm_sqrt_sqm_above,fm_log10_sqm_above,fm_sq2_sqm_above,fm_sq3_sqm_above)
+```
+
+```{r sqm_basement}
+fm_sqm_basement <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_basement + sqm_basement)
+
+fm_sqrt_sqm_basement <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_basement + sqrt(sqm_basement))
+
+
+fm_sq2_sqm_basement <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_basement + (sqm_basement)^2)
+
+fm_sq3_sqm_basement <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_basement + (sqm_basement)^3)
+
+BIC(fm_sqm_basement,fm_sqrt_sqm_basement,fm_sq2_sqm_basement,fm_sq3_sqm_basement)
+```
+
+```{r sqm_living15}
+fm_sqm_living15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living15 + sqm_living15)
+
+fm_sqrt_sqm_living15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living15 + sqrt(sqm_living15))
+
+fm_log10_sqm_living15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living15 + log10(sqm_living15))
+
+fm_sq2_sqm_living15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living15 + (sqm_living15)^2)
+
+fm_sq3_sqm_living15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_living15 + (sqm_living15)^3)
+
+BIC(fm_sqm_living15,fm_sqrt_sqm_living15,fm_log10_sqm_living15,fm_sq2_sqm_living15,fm_sq3_sqm_living15)
+```
+
+```{r sqm_lot15}
+fm_sqm_lot15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot15 + sqm_lot15)
+
+fm_sqrt_sqm_lot15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot15 + sqrt(sqm_lot15))
+
+fm_log10_sqm_lot15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot15 + log10(sqm_lot15))
+
+fm_sq2_sqm_lot15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot15 + (sqm_lot15)^2)
+
+fm_sq3_sqm_lot15 <- full_data_woo %>%
+  lm(data = ., price ~ . - sqm_lot15 + (sqm_lot15)^3)
+
+BIC(fm_sqm_lot15,fm_sqrt_sqm_lot15,fm_log10_sqm_lot15,fm_sq2_sqm_lot15,fm_sq3_sqm_lot15)
+```
+
+```{r mean_price_zip}
+fm_mean_price_zip <- full_data_woo %>%
+  lm(data = ., price ~ . - mean_price_zip + mean_price_zip)
+
+fm_sqrt_mean_price_zip <- full_data_woo %>%
+  lm(data = ., price ~ . - mean_price_zip + sqrt(mean_price_zip))
+
+fm_log10_mean_price_zip <- full_data_woo %>%
+  lm(data = ., price ~ . - mean_price_zip + log10(mean_price_zip))
+
+fm_sq2_mean_price_zip <- full_data_woo %>%
+  lm(data = ., price ~ . - mean_price_zip + (mean_price_zip)^2)
+
+fm_sq3_mean_price_zip <- full_data_woo %>%
+  lm(data = ., price ~ . - mean_price_zip + (mean_price_zip)^3)
+
+BIC(fm_mean_price_zip,fm_sqrt_mean_price_zip,fm_log10_mean_price_zip,fm_sq2_mean_price_zip,fm_sq3_mean_price_zip)
+```
+
