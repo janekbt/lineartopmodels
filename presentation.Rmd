@@ -115,22 +115,29 @@ result_1 <- summary(lmo_1)
 knitr::include_graphics("screenshots/summary_2.png")
 ```
 
+```{r include=FALSE}
+a <- round(result_1$adj.r.squared, 4)
+b <- round(AIC(lmo_1), 4)
+c <- round(BIC(lmo_1), 4)
+```
+
+
 **Criteria:**
 
-  - $R^2_{adj}$: `r round(result_1$adj.r.squared, 4)`
-  - $AIC$: `r round(AIC(lmo_1), 4)`
-  - $BIC$: `r round(BIC(lmo_1), 4)`
+  - $R^2_{adj}$: `r a`
+  - $AIC$: `r b`
+  - $BIC$: `r c`
 </div>
 
 ## Outliers
 
-```{r echo=FALSE}
+```{r echo=FALSE, fig.align = "center"}
 plot(lmo_1, which=5)
 ```
 
 ## Track outliers down
 
-```{r}
+```{r, fig.align = "center"}
 boxplot(dat_old_1$bedrooms, horizontal = T, main = "bedrooms")
 ```
 
@@ -151,8 +158,6 @@ AIC(lmo_1, lmo_excluding_33, lmo_excluding_outlier) %>%
   kable() %>%
   kable_styling()
 
-
-
 ```
 
 * Observations:
@@ -170,7 +175,7 @@ AIC(lmo_1, lmo_excluding_33, lmo_excluding_outlier) %>%
 * Date related columns
     + creating weeks and months of the year
 
-```{r echo=FALSE, message=TRUE, warning=TRUE}
+```{r include=FALSE}
 dat_old_2 <- dat_old_1 %>%
   mutate_at(
     vars(starts_with("sqft")),
@@ -254,25 +259,32 @@ lmo_2 <- lm(price ~ ., data = dat_new_1)
 s_lmo_2 <- summary(lmo_2)
 ```
 
+
+<div class="columns-2">
+
 **Old model:**
 
   - $R^2_{adj}$: `r round(result_1$adj.r.squared, 4)`
   - $AIC$: `r round(AIC(lmo_1), 4)`
   - $BIC$: `r round(BIC(lmo_1), 4)`
-  
+
+\newline
+\newline
+\newline
+\newline
+\newline
 
 **Second model:**
 
   - $R^2_{adj}$: `r round(s_lmo_2$adj.r.squared, 4)`
   - $AIC$: `r round(AIC(lmo_2), 4)`
   - $BIC$: `r round(BIC(lmo_2), 4)`
-
+  
+</div>
 
 ## Variable preselection (Part II)
 
-Looking back into the NA coefficients of the old model:
-
-**sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
+- **sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
 
 ```{r}
 lmo_AB <- dat_new_1 %>%
@@ -286,34 +298,24 @@ lmo_L <- dat_new_1 %>%
 s_lmo_AB <- summary(lmo_AB)
 s_lmo_L <- summary(lmo_L)
 
-dat_new_2 <- dat_new_1 %>%
-  dplyr::select(-sqm_above, -sqm_basement)
+row_names <- c("Model with sqm_above & sqm_basement", "Model with sqm_living")
+col_names <- c("R^2 adjust.", "AIC", "BIC")
+a <- matrix(c(round(s_lmo_AB$adj.r.squared, 4),
+              round(AIC(lmo_AB), 4),
+              round(BIC(lmo_AB), 4),
+              round(s_lmo_L$adj.r.squared, 4),
+              round(AIC(lmo_L), 4),
+              round(BIC(lmo_L), 4)),
+            ncol = 3,
+            byrow = T,
+            dimnames = list(row_names, col_names))
+a %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))```
+
 
 ```
 
-**Model with sqm_above & sqm_basement:**
-
-  - $R^2_{adj}$: `r round(s_lmo_AB$adj.r.squared, 4)`
-  - $AIC$:  `r round(BIC(lmo_L), 4)`
-  - $BIC$: `r round(BIC(lmo_AB), 4)`
-  
-
-**Model with sqm_living:**
-
-  - $R^2_{adj}$: `r round(s_lmo_L$adj.r.squared, 4)`
-  - $AIC$: `r round(AIC(lmo_L), 4)`
-  - $BIC$: `r round(BIC(lmo_L), 4)`
-
-
 ## Variable Transformation
-
-
-
-
-
-
-
-
-
 
 
