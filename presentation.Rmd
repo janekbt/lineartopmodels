@@ -9,10 +9,10 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
 #install.packages("kableExtra")
 library(tidyverse)
 library(knitr)
+knitr::opts_chunk$set(echo = FALSE)
 library(kableExtra)
 options("kableExtra.html.bsTable" = T)
 dat <- readRDS("dat_6.rds")
@@ -36,15 +36,37 @@ matrix(colnames(dat_old), ncol = 3) %>%
 ```
 
 
-## Slide with R Output
+## The first model
 
-```{r cars, echo = TRUE}
-summary(cars)
+Changes:
+
+- **square feet** into **square meters**
+- waterfront into a **factor** variable
+- log10 of price (response variable)
+
+```{r echo=FALSE}
+result <- dat_old %>%
+  mutate_at(
+    vars(starts_with("sqft")),
+    function(x) x * 0.092903
+  ) %>%
+  rename_at(
+    vars(starts_with("sqft")),
+    function(x) str_replace(x, "sqft", "sqm")
+  ) %>%
+  mutate(
+    waterfront = factor(waterfront)
+    ) %>%
+  select(-id, -date) %>%
+  lm(data = ., price ~ .) %>%
+  summary(.)
+
 ```
+
 
 ## Slide with Plot
 
-```{r pressure}
-plot(pressure)
+```{r}
+knitr::include_graphics("C:/Users/janek/OneDrive/Dokumente/Uni-Leiden/1. Semester/Linear Models and Linear Algebra/Assignment/lineartopmodels/screenshots/summary_1.jpg")
 ```
 
