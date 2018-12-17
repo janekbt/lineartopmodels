@@ -1,0 +1,50 @@
+---
+title: "Linear top models"
+subtitle: "A predictive model of house prices in King County, USA"
+author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
+date: "December 16, 2018"
+output: 
+  ioslides_presentation:
+    widescreen: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+#install.packages("kableExtra")
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+options("kableExtra.html.bsTable" = T)
+dat <- readRDS("dat_6.rds")
+dat_old <- read_csv("kc_house_data.csv")
+```
+
+## The dataset
+
+- Houses sold between May 2014 and May 2015
+- Observations: **`r nrow(dat_old)`**
+- Variables: **`r ncol(dat_old)`**
+
+gonna add pic right here...
+
+## Variables
+
+```{r}
+matrix(colnames(dat_old), ncol = 3) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+
+## Slide with R Output
+
+```{r cars, echo = TRUE}
+summary(cars)
+```
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+

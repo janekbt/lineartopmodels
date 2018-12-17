@@ -43,13 +43,14 @@ dat_4 <- dat_3 %>%
 
 - add new variable wasViewed and keep view as it is (BIC)
 - bathrooms to the power of 1/5 according to best BIC
-- sqm_living15?
+- log of sqm_living15 (BIC and everything else)
 
 ```{r}
 dat_5 <- dat_4 %>%
   mutate(
     wasViewed = factor(ifelse(view > 0, 1, 0)),
-    bathrooms = bathrooms^(1/5)
+    bathrooms = bathrooms^(1/5),
+    sqm_living15 = log(sqm_living15)
   )
 ```
 
@@ -107,6 +108,9 @@ summary(pre_selection_model)
 BIC(pre_selection_model, old_model, trans_model)
 #anova(pre_selection_model, old_model, trans_model)
 
+colnames(dat_6) %>%
+  paste0(collapse = " + ")
+
 nrow(old_dat)
 nrow(dat_6)
 nrow(dat_3)
@@ -115,9 +119,24 @@ nrow(dat_3)
 # k-fold validation
 ## 5
 ```{r}
-install.packages("disdat")
-library(disdat)
 k <- 5
-kFold
+n <- nrow(dat_6)
+folds <- sample(rep(c(1:k), length.out = nrow(dat_6)))
+result <- numeric(k)
+for (i in 1:k) {
+  training <- dat_6[folds != i,]
+  test <- dat_6[folds == i,]
+
+  lmo <- lm(data = training, price ~ .)
+  predict <- predict(lmo, test)
+
+
+  #break
+  result[i] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+}
+sqrt(mean(result))
+
+median(10^dat_6$price)
+sd(10^dat_6$price)
 ```
 
