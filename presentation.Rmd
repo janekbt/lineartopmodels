@@ -10,8 +10,18 @@ output:
 
 ```{r setup, include=FALSE}
 #install.packages("kableExtra")
+#install.packages("jpeg")
+#install.packages("png")
+#install.packages("kable")
+#install.packages("gridExtra")
+library(lubridate)
+library(gridExtra)
+library(MASS)
+library(png)
+library(jpeg)
 library(tidyverse)
 library(knitr)
+library(car)
 knitr::opts_chunk$set(echo = FALSE)
 library(kableExtra)
 options("kableExtra.html.bsTable" = T)
@@ -29,23 +39,53 @@ gonna add pic right here...
 
 ## Variables
 
-```{r}
+```{r echo=FALSE}
 matrix(colnames(dat_old), ncol = 3) %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-
-## The first model
-
-Changes:
-
-- **square feet** into **square meters**
-- waterfront into a **factor** variable
-- log10 of price (response variable)
+## Response variable inspection
 
 ```{r echo=FALSE}
-result <- dat_old %>%
+par(mfrow = c(1,2))
+truehist(dat_old$price,
+         xlab = "price")
+a <- qqPlot(dat_old$price,
+            xlab = "quantiles",
+            ylab = "")
+```
+
+## Response variable transformation
+
+```{r echo=FALSE}
+par(mfrow = c(1,2))
+truehist(log10(dat_old$price),
+         xlab = "price")
+a <- qqPlot(log10(dat_old$price),
+            xlab = "quantiles",
+            ylab = "")
+```
+
+## How are we going to select the models?
+
+* Problem: p-value and multiple testing
+* Alternative criteria:
+    + $AIC$
+    + $BIC$
+    + $R^2_{adj.}$
+
+## Preliminary data formating
+
+**Changes**:
+
+  - **square feet** into **square meters**
+  - waterfront and renovated into a **factor** variable
+  - log10 of price (response variable)
+
+
+```{r}
+dat_old_1 <- dat_old %>%
   mutate_at(
     vars(starts_with("sqft")),
     function(x) x * 0.092903
@@ -55,18 +95,138 @@ result <- dat_old %>%
     function(x) str_replace(x, "sqft", "sqm")
   ) %>%
   mutate(
-    waterfront = factor(waterfront)
+    waterfront = factor(waterfront),
+    price = log10(price),
+    renovated = factor(ifelse(yr_renovated > 0, "yes", "no"))
     ) %>%
-  select(-id, -date) %>%
-  lm(data = ., price ~ .) %>%
-  summary(.)
+  select(-id) 
+
+lmo_1 <- lm(price ~ . -date, data = dat_old_1)
+
+result_1 <- summary(lmo_1)
 
 ```
 
+## First model {.flexbox .vcenter}
 
-## Slide with Plot
+<div class="columns-2">
 
 ```{r}
-knitr::include_graphics("C:/Users/janek/OneDrive/Dokumente/Uni-Leiden/1. Semester/Linear Models and Linear Algebra/Assignment/lineartopmodels/screenshots/summary_1.jpg")
+knitr::include_graphics("screenshots/summary_2.png")
 ```
+
+**Criteria:**
+
+  - $R^2_{adj}$: `r round(result_1$adj.r.squared, 4)`
+  - $AIC$: `r round(AIC(lmo_1), 4)`
+  - $BIC$: `r round(BIC(lmo_1), 4)`
+</div>
+
+## Outliers
+
+```{r echo=FALSE}
+plot(lmo_1, which=5)
+```
+
+## Track outliers down
+
+```{r}
+boxplot(dat_old_1$bedrooms, horizontal = T, main = "bedrooms")
+```
+
+- Additionally, testing with removal of observations with zero bedrooms. 
+
+## Post outlier removal comparison
+
+```{r warning=FALSE}
+lmo_excluding_33 <- dat_old_1 %>%
+  filter(bedrooms < 15) %>%
+  lm(data = . , price ~ . -date)
+
+lmo_excluding_outlier <- dat_old_1 %>%
+  filter(bedrooms < 15 & bedrooms > 0) %>%
+  lm(data = ., price ~ . -date)
+
+AIC(lmo_1, lmo_excluding_33, lmo_excluding_outlier) %>%
+  kable() %>%
+  kable_styling()
+
+
+
+```
+
+* Observations:
+    + Dropping extreme outlier slightly improves the model
+    + Dropping zero-valued observations adds no value to the model
+
+
+## Creating new variables
+
+  *Average price by zipcode
+      + sampling 20% of the data
+      + computing average price by zipcode
+      + adding computed averages to remaining 80%
+      
+  *Date related columns
+      + creating weeks and months of the year
+
+```{r}
+dat_old_2 <- dat_old_1 %>%
+  mutate_at(
+    vars(starts_with("sqft")),
+    function(x) x * 0.092903
+  ) %>%
+  rename_at(
+    vars(starts_with("sqft")),
+    function(x) str_replace(x, "sqft", "sqm")
+  ) %>%
+  mutate(
+    week_of_year = week(date),
+    month_of_year = month(date)
+  ) %>%
+  select(-starts_with("sqm"), starts_with("sqm"), -date)
+
+
+
+
+set.seed(1234)
+dat_old_2_shuffled<- dat_old_2 %>%
+  sample_n(nrow(.))
+
+first_fifth_avg <- dat_old_2_shuffled %>%
+  slice(1:(n()/5)) %>%
+  group_by(zipcode) %>%
+  summarise(mean_price_zip = mean(price))
+
+result <- dat_old_2_shuffled %>%
+  slice((n()/5):n()) %>%
+  left_join(., first_fifth_avg, key = zipcode)
+
+```
+
+
+
+## Variable preselection 
+
+### Correlation analysis 
+
+```{r warning=FALSE}
+(corrs <- result %>%
+   select(-waterfront, -renovated) %>%
+  cor(.) %>%
+  .[,1] %>%
+  abs(.) %>%
+  sort(.) %>%
+  as.matrix(., nrow(length(.))))
+
+good_corr <- corrs %>%
+  rownames(.) %>%
+  .[10:length(.)]
+```
+
+
+
+
+
+
 
