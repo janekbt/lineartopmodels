@@ -1,0 +1,82 @@
+---
+title: "Untitled"
+author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
+date: "December 17, 2018"
+output: ioslides_presentation
+---
+
+1. raw: 21 cols
+```{r}
+raw_data <- read_csv("kc_house_data.csv")
+saveRDS(raw_data, "raw_data")
+```
+
+2. raw without:
+    - id 
+    - date
+  changed:
+    - sqft into sqm
+    - waterfront into factor
+  added:
+    - month
+    - week
+    - wasViewed
+    - renovated(factor)
+    - mean_price_zip
+    
+    24 cols
+    
+```{r}
+full_data <- raw_data %>%
+  mutate_at(
+    vars(starts_with("sqft")),
+    function(x) x * 0.092903
+  ) %>%
+  rename_at(
+    vars(starts_with("sqft")),
+    function(x) str_replace(x, "sqft", "sqm")
+  ) %>%
+  mutate(
+    week_of_year = week(date),
+    month_of_year = month(date),
+    renovated = factor(ifelse(yr_renovated > 0, "yes", "no")),
+    wasViewed = factor(ifelse(view > 0, 1, 0)),
+    waterfront = factor(waterfront)
+  ) %>%
+  select(-id, -date, -starts_with("sqm"), starts_with("sqm"))
+
+set.seed(1234)
+very_full_dat<- full_data %>%
+  sample_n(nrow(.))
+
+first_fifth_avg <- full_data %>%
+  slice(1:(n()/5)) %>%
+  group_by(zipcode) %>%
+  summarise(mean_price_zip = mean(price))
+
+result <- very_full_dat %>%
+  slice((n()/5):n()) %>%
+  left_join(., first_fifth_avg, key = zipcode) %>%
+  select(zipcode, mean_price_zip, price) 
+
+full_data <- very_full_dat %>%
+  left_join(., first_fifth_avg, key = zipcode)
+
+full_data <- full_data %>%
+  mutate(
+    price = log10(price),
+    mean_price_zip = log10(mean_price_zip)
+  )
+
+saveRDS(full_data, "full_data")
+```
+
+# full data without outliers
+```{r}
+full_data_woo <- full_data %>%
+  filter(bedrooms < 15)
+
+saveRDS(full_data_woo, "full_data_woo" )
+```
+
+
