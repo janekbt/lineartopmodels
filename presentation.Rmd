@@ -318,4 +318,35 @@ a %>%
 
 ## Variable Transformation
 
+```{r echo=FALSE}
+lmo_sqrt_sqm_living <- dat_new_2 %>%
+  lm(data = ., price ~ . - sqm_living + sqrt(sqm_living))
 
+BIC(lmo_L,lmo_sqrt_sqm_living)
+
+
+lmo_sqrt_lat <- dat_new_2 %>%
+  lm(data = ., price ~ . - lat + log10(lat))
+
+BIC(lmo_L,lmo_sqrt_lat)
+```
+
+
+
+```{r include=FALSE}
+dat_new_3 <- dat_new_2 %>%
+  mutate(
+    floors = log10(floors),
+    bedrooms = sqrt(bedrooms),
+    wasViewed = factor(ifelse(view > 0, 1, 0)),
+    bathrooms = bathrooms^(1/5),
+    sqm_living15 = log(sqm_living15),
+    mean_price_zip = log10(mean_price_zip),
+    grade = log10(grade),
+    sqm_living = sqrt(sqm_living)
+  )
+
+
+```
+
+## Final model
