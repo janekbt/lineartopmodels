@@ -318,6 +318,7 @@ a %>%
 
 ## Variable Transformation
 
+<<<<<<< HEAD
 ```{r echo=FALSE}
 lmo_sqrt_sqm_living <- dat_new_2 %>%
   lm(data = ., price ~ . - sqm_living + sqrt(sqm_living))
@@ -350,3 +351,10 @@ dat_new_3 <- dat_new_2 %>%
 ```
 
 ## Final model
+=======
+
+
+
+
+
+>>>>>>> 16a370e6f0adf85460a65f8cfac9dc981d03217d
