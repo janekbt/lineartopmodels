@@ -312,32 +312,9 @@ a <- matrix(c(round(s_lmo_AB$adj.r.squared, 4),
 a %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
+
+
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## Variable Transformation
 

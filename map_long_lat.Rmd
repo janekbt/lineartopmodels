@@ -8,18 +8,24 @@ library(tidyverse)
 ```
 
 ```{r}
-dat_origin = read_csv("kc_house_data.csv")
+dat_old = read_csv("kc_house_data.csv")
 ```
 
 ```{r}
 leaflet() %>% 
-  addTiles() %>% 
-  addCircleMarkers(data = dat_origin,
-                   lat = dat_origin$lat, lng = dat_origin$long,
-                   color = "blue",
-                   radius = 0.0001,
-                   opacity = 0.09,
-                   fillOpacity = 0.09
-                   )
+  addTiles() %>%
+  #clearBounds() %>%
+  fitBounds(-122.59, 47.2, -121.29, 47.72) %>%
+  #setMaxBounds(-122.59, 47.2, -121.29, 47.72) %>%
+  #setView(-122.03450927734375,47.35557131485476, zoom = 9.5) %>%
+  addCircles(
+    data = dat_old,
+    lat = dat_old$lat, 
+    lng = dat_old$long,
+    radius = 0.5,
+    weight = 0.2)
+
+library(OpenStreetMap)
+launchMapHelper()
 ```
 
