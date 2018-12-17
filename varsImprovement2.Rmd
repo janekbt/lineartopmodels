@@ -471,15 +471,3 @@ Transforming using log(), yields lower RSS, higher Adj. R-squared, lower AIC and
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
