@@ -259,10 +259,10 @@ cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
 ```
 ## Variable preselection 
 
-* Cutoff:
-    + We observe a big jump from 0.107 to 0.314
-    + Dropping all variables below 0.314
-    + We are now left with 11 variables (plus the 2 factors)
+* Hypothesis:
+    + We observe a big jump in correlation from 0.107 to 0.314
+    + Dropping all variables below 0.314 might decrease prediction error
+
 
 
 
@@ -298,154 +298,163 @@ for (b in 1:B){
 }
 model_4_mrmse <- mean(sqrt(results))
 model_4_sdrmse <- sd(sqrt(results))
+
+Mean_RMSE <- rbind(model_3_mrmse, model_4_mrmse)
+SD_RMSE <- rbind(model_3_sdrmse, model_4_sdrmse)
+
+cbind(AIC(model_3, model_4), Mean_RMSE, SD_RMSE) %>%
+  kable() %>%
+  kable_styling()
 ```
-
-
-<div class="columns-2">
-
-**Old model:**
-
-  - $R^2_{adj}$: `r round(result_1$adj.r.squared, 4)`
-  - $AIC$: `r round(AIC(lmo_1), 4)`
-  - $BIC$: `r round(BIC(lmo_1), 4)`
-
-\newline
-\newline
-\newline
-\newline
-\newline
-
-**Second model:**
-
-  - $R^2_{adj}$: `r round(s_lmo_2$adj.r.squared, 4)`
-  - $AIC$: `r round(AIC(lmo_2), 4)`
-  - $BIC$: `r round(BIC(lmo_2), 4)`
-  
-</div>
 
 ## Variable preselection (Part II)
 
-- **sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
+* **sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
+* Deleting variables because of redundancy
+    + choosing the best transformations first
+    + then drop the variable of the worse perfoming model
 
 ```{r}
-lmo_AB <- dat_new_1 %>%
-  dplyr::select(-sqm_living) %>%
-  lm(data = ., price ~ .)
+set.seed(1234)
+intermediate_5 <- full_data_woo %>%
+  mutate(
+    sqm_above = sqrt(sqm_above),
+    sqm_basement = sqrt(sqm_basement)
+  ) %>%
+  dplyr::select(-sqm_living) 
 
-lmo_L <- dat_new_1 %>%
-  dplyr::select(-sqm_above, -sqm_basement) %>%
-  lm(data = ., price ~ .)
+model_5 <- lm(data = intermediate_5, price ~ .)
 
-s_lmo_AB <- summary(lmo_AB)
-s_lmo_L <- summary(lmo_L)
+intermediate_6 <- full_data_woo %>%
+  mutate(
+    sqm_living = sqrt(sqm_living)
+  ) %>%
+  dplyr::select(-sqm_above, -sqm_basement) 
+
+model_6 <- lm(data = intermediate_6, price ~ .)
+
+s_model_5 <- summary(model_5)
+s_model_6 <- summary(model_6)
+
+B <- 10
+k <- 10
+n <- nrow(intermediate_5)
+folds <- sample(rep(c(1:k), length.out = nrow(intermediate_5)))
+results <- matrix(0, nrow = k, ncol = B)
+for (b in 1:B){
+  for (i in 1:k) {
+    training <- intermediate_5[folds != i,]
+    test <- intermediate_5[folds == i,]
+
+    lmo <- lm(data = training, price ~ .)
+    predict <- predict(lmo, test)
+    
+    results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+  }
+}
+model_5_mrmse <- mean(sqrt(results))
+model_5_sdrmse <- sd(sqrt(results))
+
+B <- 10
+k <- 10
+n <- nrow(intermediate_6)
+folds <- sample(rep(c(1:k), length.out = nrow(intermediate_6)))
+results <- matrix(0, nrow = k, ncol = B)
+for (b in 1:B){
+  for (i in 1:k) {
+    training <- intermediate_6[folds != i,]
+    test <- intermediate_6[folds == i,]
+
+    lmo <- lm(data = training, price ~ .)
+    predict <- predict(lmo, test)
+    
+    results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+  }
+}
+model_6_mrmse <- mean(sqrt(results))
+model_6_sdrmse <- sd(sqrt(results))
 
 row_names <- c("Model with sqm_above & sqm_basement", "Model with sqm_living")
-col_names <- c("R^2 adjust.", "AIC", "BIC")
-a <- matrix(c(round(s_lmo_AB$adj.r.squared, 4),
-              round(AIC(lmo_AB), 4),
-              round(BIC(lmo_AB), 4),
-              round(s_lmo_L$adj.r.squared, 4),
-              round(AIC(lmo_L), 4),
-              round(BIC(lmo_L), 4)),
-            ncol = 3,
+col_names <- c("R^2 adjust.", "AIC", "BIC", "Mean_RMSE", "SD_RMSE")
+a <- matrix(c(round(s_model_5$adj.r.squared, 4),
+              round(AIC(model_5), 4),
+              round(BIC(model_5), 4),
+              round(model_5_mrmse, 4),
+              round(model_5_sdrmse, 4),
+              round(s_model_6$adj.r.squared, 4),
+              round(AIC(model_6), 4),
+              round(BIC(model_6), 4),
+              round(model_6_mrmse, 4),
+              round(model_6_sdrmse, 4)),
+            ncol = 5,
             byrow = T,
             dimnames = list(row_names, col_names))
 a %>%
   kable() %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
-
-
 ```
+
 
 ## Variable Transformation
 
-
-```{r echo=FALSE}
-dat_new_2 <- dat_new_1 %>%
-  dplyr::select(-sqm_basement, -sqm_above)
-
-lmo_sqrt_sqm_living <- dat_new_2 %>%
-  lm(data = ., price ~ . - sqm_living + sqrt(sqm_living))
-
-BIC(lmo_L,lmo_sqrt_sqm_living)
-
-
-lmo_sqrt_lat <- dat_new_2 %>%
-  lm(data = ., price ~ . - lat + log10(lat))
-
-BIC(lmo_L,lmo_sqrt_lat)
-```
-
-
-
 ```{r include=FALSE}
-dat_new_3 <- dat_new_2 %>%
+transformed_data <- full_data_woo %>%
+  select(-sqm_living) %>%
   mutate(
+    sqm_above = sqrt(sqm_above),
+    sqm_basement = sqrt(sqm_basement),
     floors = log10(floors),
-    bedrooms = sqrt(bedrooms),
-    wasViewed = factor(ifelse(view > 0, 1, 0)),
     bathrooms = bathrooms^(1/5),
     sqm_living15 = log(sqm_living15),
     mean_price_zip = log10(mean_price_zip),
     grade = log10(grade),
-    sqm_living = sqrt(sqm_living)
+    condition = log10(condition),
+    yr_built = log10(yr_built),
+    lat = log10(lat),
+    week_of_year = log10(week_of_year),
+    month_of_year = log10(month_of_year),
+    sqm_lot15 = log10(sqm_lot15)
   )
 
-ncol(dat_new_3)
+ncol(transformed_data)
 ```
 
 ## Final model
 
 ```{r}
-test <- result %>%
+set.seed(1234)
+model_7 <- transformed_data %>%
   lm(data = ., price ~ .)
 
-test_new <- dat_new_3 %>%
-  lm(data = ., price ~ .)
-
-summary(test)$adj.r.squared
-summary(test_new)$adj.r.squared
-BIC(test, test_new)
-ncol(result)
-```
-
-```{r}
-k <- 5
-n <- nrow(result)
-folds <- sample(rep(c(1:k), length.out = nrow(result)))
-results <- numeric(k)
-for (i in 1:k) {
-  training <- result[folds != i,]
-  test <- result[folds == i,]
-
-  lmo <- result %>%
-  dplyr::select(-waterfront, -renovated) %>%
-  lm(data = ., price ~ .)
-  predict <- predict(lmo, test)
-
-  results[i] <- sum((10^test$price - 10^predict)^2)/length(test$price)
-}
-mean(sqrt(results))
-sd(sqrt(results))
-```
-
-```{r}
+B <- 10
 k <- 10
-n <- nrow(dat_new_3)
-folds <- sample(rep(c(1:k), length.out = nrow(dat_new_3)))
-results <- numeric(k)
-for (i in 1:k) {
-  training <- dat_new_3[folds != i,]
-  test <- dat_new_3[folds == i,]
+n <- nrow(transformed_data)
+folds <- sample(rep(c(1:k), length.out = nrow(transformed_data)))
+results <- matrix(0, nrow = k, ncol = B)
+for (b in 1:B){
+  for (i in 1:k) {
+    training <- transformed_data[folds != i,]
+    test <- transformed_data[folds == i,]
 
-  lmo <- lm(data = training, price ~ .)
-  predict <- predict(lmo, test)
-
-
-  #break
-  results[i] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+    lmo <- lm(data = training, price ~ .)
+    predict <- predict(lmo, test)
+    
+    results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+  }
 }
-mean(sqrt(results))
-sd(sqrt(results))
+model_7_mrmse <- mean(sqrt(results))
+model_7_sdrmse <- sd(sqrt(results))
+
+Mean_RMSE <- rbind(model_1_mrmse, model_5_mrmse, model_7_mrmse)
+SD_RMSE <- rbind(model_1_sdrmse, model_5_sdrmse, model_7_sdrmse)
+
+cbind(AIC(model_1, model_5, model_7), Mean_RMSE, SD_RMSE) %>%
+  kable() %>%
+  kable_styling()
 ```
+
+```{r}
+
+```
+
 
