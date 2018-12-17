@@ -99,7 +99,7 @@ dat_old_1 <- dat_old %>%
     price = log10(price),
     renovated = factor(ifelse(yr_renovated > 0, "yes", "no"))
     ) %>%
-  select(-id) 
+  dplyr::select(-id)
 
 lmo_1 <- lm(price ~ . -date, data = dat_old_1)
 
@@ -162,15 +162,15 @@ AIC(lmo_1, lmo_excluding_33, lmo_excluding_outlier) %>%
 
 ## Creating new variables
 
-  *Average price by zipcode
-      + sampling 20% of the data
-      + computing average price by zipcode
-      + adding computed averages to remaining 80%
+* Average price by zipcode
+    + sampling 20% of the data
+    + computing average price by zipcode
+    + adding computed averages to remaining 80%
       
-  *Date related columns
-      + creating weeks and months of the year
+* Date related columns
+    + creating weeks and months of the year
 
-```{r}
+```{r echo=FALSE, message=TRUE, warning=TRUE}
 dat_old_2 <- dat_old_1 %>%
   mutate_at(
     vars(starts_with("sqft")),
@@ -184,7 +184,7 @@ dat_old_2 <- dat_old_1 %>%
     week_of_year = week(date),
     month_of_year = month(date)
   ) %>%
-  select(-starts_with("sqm"), starts_with("sqm"), -date)
+  dplyr::select(-starts_with("sqm"), starts_with("sqm"), -date)
 
 
 
@@ -206,23 +206,122 @@ result <- dat_old_2_shuffled %>%
 
 
 
-## Variable preselection 
+## Variable preselection (Part I)
 
 ### Correlation analysis 
 
-```{r warning=FALSE}
-(corrs <- result %>%
-   select(-waterfront, -renovated) %>%
+```{r echo=FALSE, warning=FALSE}
+corrs <- result %>%
+   dplyr::select(-waterfront, -renovated) %>%
   cor(.) %>%
   .[,1] %>%
   abs(.) %>%
   sort(.) %>%
-  as.matrix(., nrow(length(.))))
+  as.matrix(., nrow(length(.)))
 
 good_corr <- corrs %>%
   rownames(.) %>%
   .[10:length(.)]
+
+corrs_names = rownames(corrs)
+corrs = cbind(corrs_names, round(corrs, 4))
+rownames(corrs) = NULL
+colnames(corrs) = NULL
+
+cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 ```
+## Variable preselection 
+
+* Cutoff:
+    + We observe a big jump from 0.107 to 0.314
+    + Dropping all variables below 0.314
+    + We are now left with 11 variables (plus the 2 factors)
+
+
+
+
+## Second model
+
+```{r}
+
+dat_new_1 <- result %>%
+  dplyr::select(one_of(good_corr), renovated, waterfront)
+
+lmo_2 <- lm(price ~ ., data = dat_new_1)
+
+s_lmo_2 <- summary(lmo_2)
+```
+
+**Old model:**
+
+  - $R^2_{adj}$: `r round(result_1$adj.r.squared, 4)`
+  - $AIC$: `r round(AIC(lmo_1), 4)`
+  - $BIC$: `r round(BIC(lmo_1), 4)`
+  
+
+**Second model:**
+
+  - $R^2_{adj}$: `r round(s_lmo_2$adj.r.squared, 4)`
+  - $AIC$: `r round(AIC(lmo_2), 4)`
+  - $BIC$: `r round(BIC(lmo_2), 4)`
+
+
+## Variable preselection (Part II)
+
+Looking back into the NA coefficients of the old model:
+
+**sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
+
+```{r}
+lmo_AB <- dat_new_1 %>%
+  dplyr::select(one_of(good_corr), -sqm_living) %>%
+  lm(data = ., price ~ .)
+
+lmo_L <- dat_new_1 %>%
+  dplyr::select(one_of(good_corr), -sqm_above, -sqm_basement) %>%
+  lm(data = ., price ~ .)
+
+s_lmo_AB <- summary(lmo_AB)
+s_lmo_L <- summary(lmo_L)
+
+```
+
+**Model with sqm_above & sqm_basement:**
+
+  - $R^2_{adj}$: `r round(s_lmo_AB$adj.r.squared, 4)`
+  - $AIC$: `r round(AIC(lmo_AB), 4)`
+  - $BIC$: `r round(BIC(lmo_AB), 4)`
+  
+
+**Model with sqm_living:**
+
+  - $R^2_{adj}$: `r round(s_lmo_L$adj.r.squared, 4)`
+  - $AIC$: `r round(AIC(lmo_L), 4)`
+  - $BIC$: `r round(BIC(lmo_L), 4)`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
