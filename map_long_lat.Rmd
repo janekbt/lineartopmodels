@@ -12,7 +12,8 @@ dat_origin = read_csv("kc_house_data.csv")
 ```
 
 ```{r}
-leaflet() %>% addTiles() %>% 
+leaflet() %>% 
+  addTiles() %>% 
   addCircleMarkers(data = dat_origin,
                    lat = dat_origin$lat, lng = dat_origin$long,
                    color = "blue",
