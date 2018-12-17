@@ -1,0 +1,24 @@
+---
+title: "Mapping long and lat"
+output: html_document
+---
+```{r}
+library(leaflet)
+library(tidyverse)
+```
+
+```{r}
+dat_origin = read_csv("kc_house_data.csv")
+```
+
+```{r}
+leaflet() %>% addTiles() %>% 
+  addCircleMarkers(data = dat_origin,
+                   lat = dat_origin$lat, lng = dat_origin$long,
+                   color = "blue",
+                   radius = 0.0001,
+                   opacity = 0.09,
+                   fillOpacity = 0.09
+                   )
+```
+
