@@ -1,11 +1,12 @@
 ---
 title: "Linear top models"
-subtitle: "A predictive model of house prices in King County, USA"
 author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
 date: "December 16, 2018"
-output: 
+output:
+  beamer_presentation: default
   ioslides_presentation:
-    widescreen: true
+    widescreen: yes
+subtitle: A predictive model of house prices in King County, USA
 ---
 
 ```{r setup, include=FALSE}
@@ -33,7 +34,7 @@ raw_data <- readRDS("raw_data.rds")
 full_data <- readRDS("full_data.rds")
 full_data_woo <- readRDS("full_data_woo.rds")
 
-B <- 10
+B <- 100
 k <- 10
 ```
 
