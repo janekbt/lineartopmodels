@@ -32,6 +32,9 @@ options(scipen=999)
 raw_data <- readRDS("raw_data.rds")
 full_data <- readRDS("full_data.rds")
 full_data_woo <- readRDS("full_data_woo.rds")
+
+B <- 10
+k <- 10
 ```
 
 ## The dataset
@@ -162,8 +165,6 @@ intermediate_1 <- full_data_woo %>%
 model_2 <- intermediate_1 %>%
   lm(data = . , price ~ .)
 
-B <- 10
-k <- 10
 n <- nrow(intermediate_1)
 folds <- sample(rep(c(1:k), length.out = nrow(intermediate_1)))
 results <- matrix(0, nrow = k, ncol = B)
@@ -183,8 +184,6 @@ model_2_sdrmse <- sd(sqrt(results))
 
 intermediate_2 <- data_wo_new_vars
 
-B <- 10
-k <- 10
 n <- nrow(intermediate_2)
 folds <- sample(rep(c(1:k), length.out = nrow(intermediate_2)))
 results <- matrix(0, nrow = k, ncol = B)
@@ -228,8 +227,6 @@ intermediate_3 <- full_data_woo
 model_3 <- lm(price ~ ., data = intermediate_3)
 
 
-B <- 10
-k <- 10
 n <- nrow(intermediate_3)
 folds <- sample(rep(c(1:k), length.out = nrow(intermediate_3)))
 results <- matrix(0, nrow = k, ncol = B)
@@ -334,8 +331,6 @@ s_lmo_2 <- summary(model_4)
 
 #drop1(model_3)
 
-B <- 10
-k <- 10
 n <- nrow(intermediate_4)
 folds <- sample(rep(c(1:k), length.out = nrow(intermediate_4)))
 results <- matrix(0, nrow = k, ncol = B)
@@ -393,8 +388,6 @@ model_6 <- lm(data = intermediate_6, price ~ .)
 s_model_5 <- summary(model_5)
 s_model_6 <- summary(model_6)
 
-B <- 10
-k <- 10
 n <- nrow(intermediate_5)
 folds <- sample(rep(c(1:k), length.out = nrow(intermediate_5)))
 results <- matrix(0, nrow = k, ncol = B)
@@ -412,8 +405,7 @@ for (b in 1:B){
 model_5_mrmse <- mean(sqrt(results))
 model_5_sdrmse <- sd(sqrt(results))
 
-B <- 10
-k <- 10
+
 n <- nrow(intermediate_6)
 folds <- sample(rep(c(1:k), length.out = nrow(intermediate_6)))
 results <- matrix(0, nrow = k, ncol = B)
@@ -483,8 +475,6 @@ set.seed(1234)
 model_7 <- transformed_data %>%
   lm(data = ., price ~ .)
 
-B <- 10
-k <- 10
 n <- nrow(transformed_data)
 folds <- sample(rep(c(1:k), length.out = nrow(transformed_data)))
 results <- matrix(0, nrow = k, ncol = B)
