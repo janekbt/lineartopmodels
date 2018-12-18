@@ -27,6 +27,7 @@ library(faraway)
 knitr::opts_chunk$set(echo = FALSE, cache=TRUE, warning=FALSE)
 library(kableExtra)
 options("kableExtra.html.bsTable" = T)
+options(scipen=999)
 
 raw_data <- readRDS("raw_data.rds")
 full_data <- readRDS("full_data.rds")
@@ -52,7 +53,21 @@ matrix(colnames(raw_data), ncol = 3) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-## Response variable inspection
+## Response variable numeric inspection
+
+```{r include=FALSE}
+Y_col = raw_data$price
+```
+
+* Min: **`r min(Y_col)`**
+* 1st quartile: **`r quantile(Y_col, 0.25)`**
+* Median: **`r median(Y_col)`**
+* 3rd quartile: **`r quantile(Y_col, 0.75)`**
+* Max: **`r max(Y_col)`**
+* Mean (average): **`r round(mean(Y_col), 2)`**
+* Standard deviatiion: **`r round(sd(Y_col), 2)`**
+
+## Response variable visual inspection
 
 ```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
 par(mfrow = c(1,2))
@@ -62,6 +77,8 @@ a <- qqPlot(raw_data$price,
             xlab = "quantiles",
             ylab = "")
 ```
+
+
 
 ## Response variable transformation
 
@@ -73,6 +90,7 @@ a <- qqPlot(log10(raw_data$price),
             xlab = "quantiles",
             ylab = "")
 ```
+
 
 ## How are we going to select the models?
 
@@ -236,6 +254,40 @@ cbind(AIC(model_2, model_3), Mean_RMSE, SD_RMSE) %>%
   kable() %>%
   kable_styling()
 ```
+
+## Visual correlation inspections (Part I)
+
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
+par(mfrow = c(1,2))
+
+plot(x = full_data$week_of_year, y = log10(full_data$price), main = "Week of Year  vs.  Price", ylab = "", xlab = "")
+plot(x = full_data$yr_built, y = log10(full_data$price), main = "Year Built  vs.  Price", ylab = "", xlab = "")
+
+```
+
+## Visual correlation inspections (Part II)
+
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
+par(mfrow = c(1,2))
+
+plot(x = full_data$floors, y = log10(full_data$price), main = "Floors  vs.  Price", ylab = "", xlab = "")
+plot(x = full_data$lat, y = log10(full_data$price), main = "Latitude  vs.  Price", ylab = "", xlab = "")
+
+```
+
+
+## Visual correlation inspections (Part III)
+
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
+par(mfrow = c(1,2))
+
+plot(x = full_data$sqm_living, y = log10(full_data$price), main = "Sqm. Living  vs.  Price", ylab = "", xlab = "")
+plot(x = full_data$mean_price_zip, y = log10(full_data$price), main = "Mean Price Zip  vs.  Price", ylab = "", xlab = "")
+
+
+
+```
+
 
 ## Variable preselection
 
