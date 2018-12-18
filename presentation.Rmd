@@ -9,6 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+set.seed(1234)
 #install.packages("kableExtra")
 #install.packages("jpeg")
 #install.packages("png")
@@ -23,7 +24,7 @@ library(tidyverse)
 library(knitr)
 library(car)
 library(faraway)
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE, warning=FALSE)
 library(kableExtra)
 options("kableExtra.html.bsTable" = T)
 
@@ -49,7 +50,7 @@ matrix(colnames(raw_data), ncol = 3) %>%
 
 ## Response variable inspection
 
-```{r echo=FALSE}
+```{r echo=FALSE, fig.align = "center", fig.width=8, fig.height=6}
 par(mfrow = c(1,2))
 truehist(raw_data$price,
          xlab = "price")
@@ -60,7 +61,7 @@ a <- qqPlot(raw_data$price,
 
 ## Response variable transformation
 
-```{r echo=FALSE}
+```{r echo=FALSE, fig.align = "center"}
 par(mfrow = c(1,2))
 truehist(log10(raw_data$price),
          xlab = "price")
@@ -123,6 +124,8 @@ c <- round(BIC(model_1), 4)
 par(mfrow = c(1,2))
 plot(model_1, which=5)
 plot(model_1, which=4)
+
+#head(sort(cooks.distance(model_1), decreasing = T), 4)
 ```
 
 ## Post outlier removal comparison
@@ -198,7 +201,7 @@ cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE) %>%
 
 * Still keeping the untransformed data
 
-```{r}
+```{r warning=FALSE}
 intermediate_3 <- full_data_woo
 model_3 <- lm(price ~ ., data = intermediate_3)
 
@@ -406,7 +409,7 @@ transformed_data <- full_data_woo %>%
     floors = log10(floors),
     bathrooms = bathrooms^(1/5),
     sqm_living15 = log(sqm_living15),
-    mean_price_zip = log10(mean_price_zip),
+    mean_price_zip = mean_price_zip,
     grade = log10(grade),
     condition = log10(condition),
     yr_built = log10(yr_built),
@@ -453,8 +456,5 @@ cbind(AIC(model_1, model_5, model_7), Mean_RMSE, SD_RMSE) %>%
   kable_styling()
 ```
 
-```{r}
-
-```
 
 
