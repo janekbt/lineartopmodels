@@ -7,8 +7,17 @@ output: ioslides_presentation
 
 1. raw: 21 cols
 ```{r}
-raw_data <- read_csv("kc_house_data.csv")
-saveRDS(raw_data, "raw_data")
+set.seed(1234)
+complete_data <- read_csv("kc_house_data.csv") %>%
+  sample_n(nrow(.))
+
+raw_data <- complete_data %>%
+  slice((n()/5):n())
+
+data_20p <- complete_data %>%
+  slice(1:(n()/5))
+
+saveRDS(raw_data, "raw_data.rds")
 ```
 
 2. raw without:
@@ -45,38 +54,33 @@ full_data <- raw_data %>%
   ) %>%
   select(-id, -date, -starts_with("sqm"), starts_with("sqm"))
 
-set.seed(1234)
-very_full_dat<- full_data %>%
-  sample_n(nrow(.))
 
-first_fifth_avg <- full_data %>%
-  slice(1:(n()/5)) %>%
+first_fifth_avg <- data_20p %>%
   group_by(zipcode) %>%
   summarise(mean_price_zip = mean(price))
 
-result <- very_full_dat %>%
-  slice((n()/5):n()) %>%
-  left_join(., first_fifth_avg, key = zipcode) %>%
-  select(zipcode, mean_price_zip, price) 
-
-full_data <- very_full_dat %>%
-  left_join(., first_fifth_avg, key = zipcode)
+#result <- full_data %>%
+#  left_join(., first_fifth_avg, key = zipcode) %>%
+#  select(zipcode, mean_price_zip, price) 
 
 full_data <- full_data %>%
+  left_join(., first_fifth_avg, key = zipcode) %>%
   mutate(
     price = log10(price),
     mean_price_zip = log10(mean_price_zip)
   )
 
-saveRDS(full_data, "full_data")
+saveRDS(full_data, "full_data.rds")
 ```
 
 # full data without outliers
 ```{r}
 full_data_woo <- full_data %>%
-  filter(bedrooms < 15)
+  #select(-wasViewed, -renovated, -mean_price_zip) %>%
+  slice(c(-11520, -3183, -6187, -8844))
 
-saveRDS(full_data_woo, "full_data_woo" )
+saveRDS(full_data_woo, "full_data_woo.rds" )
 ```
 
 
+#

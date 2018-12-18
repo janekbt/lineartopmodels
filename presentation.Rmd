@@ -50,7 +50,7 @@ matrix(colnames(raw_data), ncol = 3) %>%
 
 ## Response variable inspection
 
-```{r echo=FALSE, fig.align = "center", fig.width=8, fig.height=6}
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
 par(mfrow = c(1,2))
 truehist(raw_data$price,
          xlab = "price")
@@ -61,7 +61,7 @@ a <- qqPlot(raw_data$price,
 
 ## Response variable transformation
 
-```{r echo=FALSE, fig.align = "center"}
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
 par(mfrow = c(1,2))
 truehist(log10(raw_data$price),
          xlab = "price")
@@ -120,7 +120,7 @@ c <- round(BIC(model_1), 4)
 
 ## Outliers
 
-```{r echo=FALSE, fig.align = "center"}
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
 par(mfrow = c(1,2))
 plot(model_1, which=5)
 plot(model_1, which=4)
