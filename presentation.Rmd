@@ -39,6 +39,10 @@ full_data_woo <- readRDS("full_data_woo.rds")
 - Observations: **`r nrow(raw_data)`**
 - Variables: **`r ncol(raw_data)`**
 
+```{r fig.align = "center"}
+knitr::include_graphics("King_county_map.PNG")
+```
+
 
 ## Variables
 
@@ -85,8 +89,9 @@ a <- qqPlot(log10(raw_data$price),
 
   - **square feet** into **square meters**
   - waterfront and renovated into a **factor** variable
-  - log10 of price (response variable)
-  - split date into week and month of the year
+  - **log10** of price (response variable)
+  - split date into **week** and **month** of the year
+  - split dataset into **two parts**, 80% and 20% (more on this later)
 
 
 ```{r}
@@ -129,6 +134,8 @@ plot(model_1, which=4)
 ```
 
 ## Post outlier removal comparison
+
+* Dropping extreme outlier improves the model
 
 ```{r warning=FALSE}
 intermediate_1 <- full_data_woo %>%
@@ -185,9 +192,6 @@ cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE) %>%
   kable_styling()
 ```
 
-* Observations:
-    + Dropping extreme outlier improves the model
-
 ## Creating new variables
 
 * Average price by zipcode
@@ -233,9 +237,9 @@ cbind(AIC(model_2, model_3), Mean_RMSE, SD_RMSE) %>%
   kable_styling()
 ```
 
-## Variable preselection (Part I)
+## Variable preselection
 
-### Correlation analysis 
+**Correlation analysis:**
 
 ```{r echo=FALSE, warning=FALSE}
 corrs <- full_data %>%
@@ -266,11 +270,6 @@ cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
     + We observe a big jump in correlation from 0.107 to 0.314
     + Dropping all variables below 0.314 might decrease prediction error
 
-
-
-
-
-## Fourth model
 
 ```{r warning=FALSE}
 
@@ -310,7 +309,10 @@ cbind(AIC(model_3, model_4), Mean_RMSE, SD_RMSE) %>%
   kable_styling()
 ```
 
-## Variable preselection (Part II)
+
+
+
+## Variable selection
 
 * **sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
 * Deleting variables because of redundancy
@@ -408,7 +410,7 @@ transformed_data <- full_data_woo %>%
     sqm_basement = sqrt(sqm_basement),
     floors = log10(floors),
     bathrooms = bathrooms^(1/5),
-    sqm_living15 = log(sqm_living15),
+    sqm_living15 = log10(sqm_living15),
     mean_price_zip = mean_price_zip,
     grade = log10(grade),
     condition = log10(condition),
@@ -418,11 +420,11 @@ transformed_data <- full_data_woo %>%
     month_of_year = log10(month_of_year),
     sqm_lot15 = log10(sqm_lot15)
   )
-
-ncol(transformed_data)
 ```
 
-## Final model
+- **log10:** floors, sqm_living15, grade, condition, yr_built, lat, week_of_year, month_of_year, sqm_lot15
+- **sqrt:** sqm_above, sqm_basement
+- **power of 1/5**: bathrooms
 
 ```{r}
 set.seed(1234)
