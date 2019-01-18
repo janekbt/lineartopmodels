@@ -22,6 +22,7 @@ library(tidyverse)
 library(knitr)
 library(car)
 library(faraway)
+library(broom)
 knitr::opts_chunk$set(echo = FALSE, cache=TRUE, warning=FALSE)
 library(kableExtra)
 options("kableExtra.html.bsTable" = T)
@@ -132,18 +133,27 @@ Given this, the following metrics will be used for model comparison instead:
 * $BIC$
 * $R^2_{adj.}$
 * $RMSE$
+* $P-value$
 
 
 ## 5) Preliminary data formating
 
 It was necesary to do some initial formating in order to make sense of the data for a linear model, and to add value for the model. The modifications are the following:
 
-  - **square feet** into **square meters**
-  - waterfront and renovated into a **factor** variable
-  - **log10** of price (response variable)
-  - split date into **week** and **month** of the year
-  - split dataset into **two parts**, 80% and 20% (more on this later)
+  - square feet into square meters
+  - waterfront and renovated into a factor variable
+  - split date into week and month of the year
+  - split dataset into two parts, 80% and 20% (more on this later)
+  
+## 6) The first model
 
+```{r}
+data_wo_new_vars <- full_data %>%
+  select(-wasViewed, -renovated, -mean_price_zip)
+
+model_1 <- lm(price ~ ., data = data_wo_new_vars)
+summary(model_1)
+```
 
 
 
