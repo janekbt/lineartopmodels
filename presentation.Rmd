@@ -3,9 +3,9 @@ title: "Linear top models"
 author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
 date: "December 16, 2018"
 output:
-  beamer_presentation: default
   ioslides_presentation:
     widescreen: yes
+  beamer_presentation: default
 subtitle: A predictive model of house prices in King County, USA
 ---
 
