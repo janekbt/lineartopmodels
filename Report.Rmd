@@ -3,5 +3,149 @@ title: "Report"
 author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
 date: "January 18, 2019"
 output: pdf_document
+subtitle: A predictive model of house prices in King County, USA
 ---
+
+```{r setup, include=FALSE}
+set.seed(1234)
+#install.packages("kableExtra")
+#install.packages("jpeg")
+#install.packages("png")
+#install.packages("kable")
+#install.packages("gridExtra")
+library(lubridate)
+library(gridExtra)
+library(MASS)
+library(png)
+library(jpeg)
+library(tidyverse)
+library(knitr)
+library(car)
+library(faraway)
+knitr::opts_chunk$set(echo = FALSE, cache=TRUE, warning=FALSE)
+library(kableExtra)
+options("kableExtra.html.bsTable" = T)
+options(scipen=999)
+
+raw_data <- readRDS("raw_data.rds")
+full_data <- readRDS("full_data.rds")
+full_data_woo <- readRDS("full_data_woo.rds")
+
+B <- 100
+k <- 10
+```
+
+
+## 1) The dataset
+
+The data consists of house sale prices for King County area, Washington State, which includes Seattle. It contains houses sold between May 2014 and May 2015.
+
+The dataset was obtained from https://www.kaggle.com/harlfoxem/housesalesprediction on December 2018.
+
+- Houses sold between May 2014 and May 2015
+- Observations: **`r nrow(raw_data)`**
+- Variables: **`r ncol(raw_data)`**
+
+The following map displays the geographical distribution of the data points. We can observe that the data is spread around most of the urban areas.
+
+```{r, fig.align = "center", out.width = "300px", out.height = "300px"}
+knitr::include_graphics("King_county_map.PNG")
+```
+
+## 2) Variables
+
+Below is a description of each one of the variables avaliable in the data:
+
+* **id** - Unique ID for each home sold
+* **date** - Date of the home sale 
+* **price** - Price of each home sold 
+* **bedrooms** - Number of bedrooms 
+* **bathrooms** - Number of bathrooms, where .5 accounts for a room with a toilet but no shower 
+* **sqft_living** - Square footage of the apartments interior living space 
+* **sqft_lot** - Square footage of the land space 
+* **floors** - Number of floors 
+* **waterfront** - A dummy variable for whether the apartment was overlooking the waterfront or not 
+* **view** - An index from 0 to 4 of how good the view of the property was 
+* **condition** - An index from 1 to 5 on the condition of the apartment, 
+* **grade** - An index from 1 to 13, where 1-3 falls short of building construction and design, 7 has an average level of construction and design, and 11-13 have a high quality level of construction and design. 
+* **sqft_above** - The square footage of the interior housing space that is above ground level 
+* **sqft_basement** - The square footage of the interior housing space that is below ground level 
+* **yr_built** - The year the house was initially built 
+* **yr_renovated** - The year of the house’s last renovation 
+* **zipcode** - What zipcode area the house is in 
+* **lat** - Latitude 
+* **long** - Longitude 
+* **sqft_living15** - The square footage of interior housing living space for the nearest 15 neighbors 
+* **sqft_lot15** - The square footage of the land lots of the nearest 15 neighbors 
+
+
+## 3) Response variable: numeric and visual inspection
+
+```{r include=FALSE}
+Y_col = raw_data$price
+```
+
+Here we observe some descriptive statistics about the sale prices.
+
+* **Min:** `r min(Y_col)`
+* **1st quartile:** `r quantile(Y_col, 0.25)`
+* **Median:** `r median(Y_col)`
+* **3rd quartile:** `r quantile(Y_col, 0.75)`
+* **Max:** `r max(Y_col)`
+* **Mean (average):** `r round(mean(Y_col), 2)`
+* **Standard deviatiion:** `r round(sd(Y_col), 2)`
+
+By looking at the Median and Mean, we suspect right skeweness in the data. We verify this in the following visual inspection of the data:
+
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
+par(mfrow = c(1,2))
+truehist(raw_data$price,
+         xlab = "price")
+a <- qqPlot(raw_data$price,
+            xlab = "quantiles",
+            ylab = "")
+```
+
+Adittionally to confirming our suspicion of right skeweness, we observe in the qq-plot (on the right) that the distribution does not fit the theoretical quantiles of the normal distribution. This goes against the "utopian" assumption of normality for the response variable when attepmting linear regression analysis. 
+
+In order to improve this, we apply a simple transformation to the response variable. The data is transformed to it's coresponding logarithm base 10. The following are the histogram and qq-plot of the transformed variable:
+
+```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
+par(mfrow = c(1,2))
+truehist(log10(raw_data$price),
+         xlab = "price")
+a <- qqPlot(log10(raw_data$price),
+            xlab = "quantiles",
+            ylab = "")
+```
+
+
+The transformation proves to be a huge improvement in terms of the normality assumption.
+
+## 4) Regarding model selection
+
+In order to pick the "best" model, a criteria must be specified. The P-value presents the problem of multiple testing, and, since we will be conducting several statistical tests, the P-value will not be part of out decision criteria.
+
+Given this, the following metrics will be used for model comparison instead:
+ 
+* $AIC$
+* $BIC$
+* $R^2_{adj.}$
+* $RMSE$
+
+
+## 5) Preliminary data formating
+
+It was necesary to do some initial formating in order to make sense of the data for a linear model, and to add value for the model. The modifications are the following:
+
+  - **square feet** into **square meters**
+  - waterfront and renovated into a **factor** variable
+  - **log10** of price (response variable)
+  - split date into **week** and **month** of the year
+  - split dataset into **two parts**, 80% and 20% (more on this later)
+
+
+
+
+
 
