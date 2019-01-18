@@ -37,7 +37,7 @@ k <- 10
 ```
 
 
-## 1) The dataset
+## The dataset
 
 The data consists of house sale prices for King County area, Washington State, which includes Seattle. It contains houses sold between May 2014 and May 2015.
 
@@ -53,7 +53,7 @@ The following map displays the geographical distribution of the data points. We 
 knitr::include_graphics("King_county_map.PNG")
 ```
 
-## 2) Variables
+## Variables
 
 Below is a description of each one of the variables avaliable in the data:
 
@@ -80,7 +80,7 @@ Below is a description of each one of the variables avaliable in the data:
 * **sqft_lot15** - The square footage of the land lots of the nearest 15 neighbors 
 
 
-## 3) Response variable: numeric and visual inspection
+## Response variable: numeric and visual inspection
 
 ```{r include=FALSE}
 Y_col = raw_data$price
@@ -123,7 +123,7 @@ a <- qqPlot(log10(raw_data$price),
 
 The transformation proves to be a huge improvement in terms of the normality assumption.
 
-## 4) Regarding model selection
+## Regarding model selection
 
 In order to pick the "best" model, a criteria must be specified. The P-value presents the problem of multiple testing, and, since we will be conducting several statistical tests, the P-value will not be part of out decision criteria.
 
@@ -136,16 +136,62 @@ Given this, the following metrics will be used for model comparison instead:
 * $P-value$
 
 
-## 5) Preliminary data formating
+## Preliminary data formating
 
 It was necesary to do some initial formating in order to make sense of the data for a linear model, and to add value for the model. The modifications are the following:
 
   - square feet into square meters
   - waterfront and renovated into a factor variable
   - split date into week and month of the year
+  - removed original date variable
+  - removed id because it is not predictive
   - split dataset into two parts, 80% and 20% (more on this later)
   
-## 6) The first model
+```{r}
+complete_data <- read_csv("kc_house_data.csv") %>%
+  sample_n(nrow(.))
+
+raw_data <- complete_data %>%
+  slice((n()/5):n())
+
+data_20p <- complete_data %>%
+  slice(1:(n()/5))
+
+full_data <- raw_data %>%
+  mutate_at(
+    vars(starts_with("sqft")),
+    function(x) x * 0.092903
+  ) %>%
+  rename_at(
+    vars(starts_with("sqft")),
+    function(x) str_replace(x, "sqft", "sqm")
+  ) %>%
+  mutate(
+    week_of_year = week(date),
+    month_of_year = month(date),
+    renovated = factor(ifelse(yr_renovated > 0, "yes", "no")),
+    wasViewed = factor(ifelse(view > 0, 1, 0)),
+    waterfront = factor(waterfront)
+  ) %>%
+  select(-id, -date, -starts_with("sqm"), starts_with("sqm"))
+
+
+first_fifth_avg <- data_20p %>%
+  group_by(zipcode) %>%
+  summarise(mean_price_zip = mean(price))
+
+full_data <- full_data %>%
+  left_join(., first_fifth_avg, key = zipcode) %>%
+  mutate(
+    price = log10(price),
+    mean_price_zip = log10(mean_price_zip)
+  )
+```
+
+  
+## The first model
+
+In the first model only the useful original variables will be included with minimal formating to provide a baseline for comparison.
 
 ```{r}
 data_wo_new_vars <- full_data %>%
@@ -155,7 +201,72 @@ model_1 <- lm(price ~ ., data = data_wo_new_vars)
 summary(model_1)
 ```
 
+There are two peculiarities we can observe. In the first place we observe that the variable sqm_basement was not taken into account and consists solely of NAs. The second observation provides the reason for this behavior: A singularity was discovered. That means that sqm_basement is a linear combination of two or more other variables, sqm_living and sqm_above in this case. The decision to remove those variables will be dealt with during the experimentation phase.
 
+## Experimentation
 
+Given that we now have both a baseline model and defined model selection criteria, using a trial and error approach, we can start testing different approaches seeking to improve the model. Among those approaches we will attempt outlier detection, correlation analysis and different kinds of variable transformations. Let us start with outlier detection.
+
+### Outliers
+
+Outliers, depending on their impact, may have a detrimental effect on the capacity of a model to effectively fit itself to the general patterns of the data and not just the present sample, which decreases its predictive ability. To find those divergent data points we will have a look at their leverage and the cook's distance.
+
+**Leverage**: The power to shift the model towards that specific data point
+**Cook's distance**: Measures the aggregated influence of that observation on the fitted values
+
+```{r}
+par(mfrow = c(1,2))
+plot(model_1, which=5)
+plot(model_1, which=4)
+```
+
+Inspecting the cooks distance plot we find that there are 4 highly influential data points. For the following experiment we will attempt to fit a linear model without these aforementioned observations and compare it to our baseline model.
+
+```{r}
+cross_val <- function(data, B = 100, k = 10){
+  n <- nrow(data)
+  folds <- sample(rep(c(1:k), length.out = nrow(data)))
+  results <- matrix(0, nrow = k, ncol = B)
+  for (b in 1:B){
+    for (i in 1:k) {
+      training <- data[folds != i,]
+      test <- data[folds == i,]
+
+      lmo <- lm(data = training, price ~ .)
+      predict <- predict(lmo, test)
+    
+      results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+    }
+  }
+  m_rmse <- mean(sqrt(results))
+  sd_rmse <- sd(sqrt(results))
+  l <- list(distr = sqrt(results), m_rmse = m_rmse, sd_rmse = sd_rmse)
+  return(l)
+}
+
+intermediate_1 <- full_data_woo %>%
+  select(-wasViewed, -renovated, -mean_price_zip)
+
+intermediate_2 <- data_wo_new_vars
+
+model_2 <- intermediate_1 %>%
+  lm(data = . , price ~ .)
+
+cv_2 <- cross_val(intermediate_1)
+cv_1 <- cross_val(intermediate_2)
+
+p_value_1 <- tidy(t.test(cv_1$distr, cv_2$distr, var.equal = F)) %>% 
+  select(p.value) %>% 
+  unlist() %>% 
+  formatC(format = "e") %>% 
+  rbind(" ",.)
+
+Mean_RMSE <- rbind(cv_1$m_rmse, cv_2$m_rmse)
+SD_RMSE <- rbind(cv_1$sd_rmse, cv_2$sd_rmse)
+
+cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE, p_value_1) %>%
+  kable() %>%
+  kable_styling()
+```
 
 
