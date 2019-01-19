@@ -2,6 +2,7 @@
 title: "Report"
 author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
 date: "January 18, 2019"
+classoption: table
 output: pdf_document
 subtitle: A predictive model of house prices in King County, USA
 ---
@@ -13,6 +14,9 @@ set.seed(1234)
 #install.packages("png")
 #install.packages("kable")
 #install.packages("gridExtra")
+#install.packages("bestNormalize")
+#install.packages("doParallel")
+#install.packages("parallel")
 library(lubridate)
 library(gridExtra)
 library(MASS)
@@ -23,10 +27,17 @@ library(knitr)
 library(car)
 library(faraway)
 library(broom)
-knitr::opts_chunk$set(echo = FALSE, cache=TRUE, warning=FALSE)
-library(kableExtra)
-options("kableExtra.html.bsTable" = T)
+library(bestNormalize)
+library(doParallel)
+library(parallel)
+knitr::opts_chunk$set(cache=TRUE, warning=FALSE)
+#library(kableExtra)
+#options("kableExtra.html.bsTable" = T)
 options(scipen=999)
+#options(kableExtra.latex.load_packages = FALSE)
+
+cl <- makeCluster(detectCores())
+registerDoParallel(cl)
 
 raw_data <- readRDS("raw_data.rds")
 full_data <- readRDS("full_data.rds")
@@ -120,7 +131,6 @@ a <- qqPlot(log10(raw_data$price),
             ylab = "")
 ```
 
-
 The transformation proves to be a huge improvement in terms of the normality assumption.
 
 ## Regarding model selection
@@ -133,7 +143,7 @@ Given this, the following metrics will be used for model comparison instead:
 * $BIC$
 * $R^2_{adj.}$
 * $RMSE$
-* $P-value$
+* $T-Test$ $(P-value)$
 
 
 ## Preliminary data formating
@@ -147,7 +157,7 @@ It was necesary to do some initial formating in order to make sense of the data 
   - removed id because it is not predictive
   - split dataset into two parts, 80% and 20% (more on this later)
   
-```{r}
+```{r message=FALSE, warning=FALSE}
 complete_data <- read_csv("kc_house_data.csv") %>%
   sample_n(nrow(.))
 
@@ -188,7 +198,6 @@ full_data <- full_data %>%
   )
 ```
 
-  
 ## The first model
 
 In the first model only the useful original variables will be included with minimal formating to provide a baseline for comparison.
@@ -205,14 +214,14 @@ There are two peculiarities we can observe. In the first place we observe that t
 
 ## Experimentation
 
-Given that we now have both a baseline model and defined model selection criteria, using a trial and error approach, we can start testing different approaches seeking to improve the model. Among those approaches we will attempt outlier detection, correlation analysis and different kinds of variable transformations. Let us start with outlier detection.
+Given that we now have both a baseline model and defined model selection criteria, using a trial and error approach, we can start testing different approaches seeking to improve the model. Among those approaches we will attempt outlier detection, creation of new, meaningful variables, correlation analysis and different kinds of variable transformations. Let us start with outlier detection.
 
 ### Outliers
 
 Outliers, depending on their impact, may have a detrimental effect on the capacity of a model to effectively fit itself to the general patterns of the data and not just the present sample, which decreases its predictive ability. To find those divergent data points we will have a look at their leverage and the cook's distance.
 
-**Leverage**: The power to shift the model towards that specific data point
-**Cook's distance**: Measures the aggregated influence of that observation on the fitted values
+* **Leverage**: The power to shift the model towards that specific data point
+* **Cook's distance**: Measures the aggregated influence of that observation on the fitted values
 
 ```{r}
 par(mfrow = c(1,2))
@@ -220,14 +229,14 @@ plot(model_1, which=5)
 plot(model_1, which=4)
 ```
 
-Inspecting the cooks distance plot we find that there are 4 highly influential data points. For the following experiment we will attempt to fit a linear model without these aforementioned observations and compare it to our baseline model.
+Inspecting the cooks distance plot we find that there are 4 highly influential data points. For the following test we will fit a linear model without these aforementioned observations and compare it to our baseline model.
 
 ```{r}
 cross_val <- function(data, B = 100, k = 10){
   n <- nrow(data)
   folds <- sample(rep(c(1:k), length.out = nrow(data)))
-  results <- matrix(0, nrow = k, ncol = B)
-  for (b in 1:B){
+  results <- foreach(icount(B), .combine = cbind) %dopar% {
+    res <- numeric(k)
     for (i in 1:k) {
       training <- data[folds != i,]
       test <- data[folds == i,]
@@ -235,8 +244,9 @@ cross_val <- function(data, B = 100, k = 10){
       lmo <- lm(data = training, price ~ .)
       predict <- predict(lmo, test)
     
-      results[i,b] <- sum((10^test$price - 10^predict)^2)/length(test$price)
+      res[i] <- sum((10^test$price - 10^predict)^2)/length(test$price)
     }
+    res
   }
   m_rmse <- mean(sqrt(results))
   sd_rmse <- sd(sqrt(results))
@@ -255,18 +265,247 @@ model_2 <- intermediate_1 %>%
 cv_2 <- cross_val(intermediate_1)
 cv_1 <- cross_val(intermediate_2)
 
-p_value_1 <- tidy(t.test(cv_1$distr, cv_2$distr, var.equal = F)) %>% 
+p_value_1 <- tidy(t.test(cv_1$distr, cv_2$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
   formatC(format = "e") %>% 
   rbind(" ",.)
 
-Mean_RMSE <- rbind(cv_1$m_rmse, cv_2$m_rmse)
-SD_RMSE <- rbind(cv_1$sd_rmse, cv_2$sd_rmse)
+Mean_RMSE <- round(rbind(cv_1$m_rmse, cv_2$m_rmse), 0)
+SD_RMSE <- round(rbind(cv_1$sd_rmse, cv_2$sd_rmse), 0)
 
 cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE, p_value_1) %>%
-  kable() %>%
-  kable_styling()
+  kable()
 ```
+
+- removing outliers proved successful
+- reduced Mean RMSE by almost 20.000$
+- cut SD RMSE almost in half
+- difference is highly significant (p-value)
+- AIC reduction of 83
+- Next we create new variables
+
+### Creating new variables
+
+* Average price by zipcode
+    + sampling 20% of the data
+    + computing average price by zipcode
+    + adding computed averages to remaining 80%
+
+* Factorize:
+    + view variable into viewed or not viewed
+    + year_renovated into was renovated at all or not
+
+* Still keeping the untransformed data
+
+```{r warning=FALSE}
+intermediate_3 <- full_data_woo
+
+model_3 <- lm(price ~ ., data = intermediate_3)
+
+cv_3 <- cross_val(intermediate_3)
+
+p_value_2 <- tidy(t.test(cv_2$distr, cv_3$distr, var.equal = F, alternative = "greater")) %>% 
+  select(p.value) %>% 
+  unlist() %>% 
+  formatC(format = "e") %>% 
+  rbind(" ",.)
+
+Mean_RMSE <- round(rbind(cv_2$m_rmse, cv_3$m_rmse), 0)
+SD_RMSE <- round(rbind(cv_2$sd_rmse, cv_3$sd_rmse), 0)
+
+cbind(AIC(model_2, model_3), Mean_RMSE, SD_RMSE, p_value_2) %>%
+  kable()
+```
+
+- Introducing new variables improved the model
+- reduced Mean RMSE by more than 25.000$
+- reduced SD RMSE by a third
+- difference is highly significant (p-value)
+- very large AIC improvement
+- Next we look at correlation of variables
+
+
+### Correlation analysis
+
+```{r echo=FALSE, warning=FALSE}
+corrs <- full_data %>%
+  dplyr::select(-waterfront, -renovated, - wasViewed) %>%
+  cor(.) %>%
+  .[,1] %>%
+  abs(.) %>%
+  sort(.) %>%
+  as.matrix(., nrow(length(.)))
+
+
+good_corr <- corrs %>%
+  rownames(.) %>%
+  .[10:length(.)]
+
+corrs_names = rownames(corrs)
+corrs = cbind(corrs_names, round(corrs, 4))
+rownames(corrs) = NULL
+colnames(corrs) = NULL
+
+cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
+  kable()
+```
+
+* Hypothesis:
+    + We observe a big jump in correlation from 0.107 to 0.314
+    + Dropping all variables below 0.314 might decrease prediction error
+
+```{r warning=FALSE}
+intermediate_4 <- full_data_woo %>%
+  dplyr::select(one_of(good_corr), renovated, waterfront, wasViewed)
+
+model_4 <- lm(price ~ ., data = intermediate_4)
+
+cv_4 <- cross_val(intermediate_4)
+
+Mean_RMSE <- round(rbind(cv_3$m_rmse, cv_4$m_rmse), 0)
+SD_RMSE <- round(rbind(cv_3$sd_rmse, cv_4$sd_rmse), 0)
+
+p_value_3 <- tidy(t.test(cv_3$distr, cv_4$distr, var.equal = F, alternative = "greater")) %>% 
+  select(p.value) %>% 
+  unlist() %>% 
+  formatC(format = "e") %>% 
+  rbind(" ",.)
+
+cbind(AIC(model_3, model_4), Mean_RMSE, SD_RMSE, p_value_3) %>%
+  kable()
+```
+
+### Variable selection
+
+* **sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
+* Deleting variables because of redundancy
+    + choosing the best transformations first
+    + then drop the variable of the worse perfoming model
+
+```{r}
+norm.it <- function(data){
+  bestNormalize(data, cluster = cl)$x.t
+}
+
+base <- bestNormalize(full_data_woo$sqm_basement, cluster = cl)
+
+intermediate_5 <- full_data_woo %>%
+  mutate_at(vars(sqm_above, sqm_basement), norm.it) %>%
+  dplyr::select(-sqm_living)
+
+
+model_5 <- lm(data = intermediate_5, price ~ .)
+
+intermediate_6 <- full_data_woo %>%
+  mutate_at(vars(sqm_living), norm.it) %>%
+  dplyr::select(-sqm_above, -sqm_basement) 
+
+model_6 <- lm(data = intermediate_6, price ~ .)
+
+s_model_5 <- summary(model_5)
+s_model_6 <- summary(model_6)
+
+cv_5 <- cross_val(intermediate_5)
+cv_6 <- cross_val(intermediate_6)
+
+p_value_4 <- tidy(t.test(cv_5$distr, cv_6$distr, var.equal = F, alternative = "greater")) %>% 
+  select(p.value) %>% 
+  unlist() %>% 
+  formatC(format = "e") 
+
+row_names <- c("above & basement", "living")
+col_names <- c("R^2 adjust.", "AIC", "BIC", "Mean_RMSE", "SD_RMSE", "P-value")
+a <- matrix(
+  c(
+    round(s_model_5$adj.r.squared, 4),
+    round(AIC(model_5), 0),
+    round(BIC(model_5), 0),
+    round(cv_5$m_rmse, 0),
+    round(cv_5$sd_rmse, 0),
+    " ",
+    round(s_model_6$adj.r.squared, 4),
+    round(AIC(model_6), 0),
+    round(BIC(model_6), 0),
+    round(cv_6$m_rmse, 0),
+    round(cv_6$sd_rmse, 0),
+    p_value_4),
+  ncol = 6,
+  byrow = T,
+  dimnames = list(row_names, col_names)
+)
+
+a %>%
+  kable()
+```
+
+```{r}
+transformed_data_new <- full_data_woo %>%
+  select(-price, -sqm_living, -sqm_basement) %>% 
+  mutate_if(is.numeric, norm.it) %>% 
+  cbind(price = full_data_woo$price, ., base$x.t)
+
+transformed_data <- full_data_woo %>%
+  select(-sqm_living) %>%
+  mutate(
+    sqm_above = sqrt(sqm_above),
+    sqm_basement = sqrt(sqm_basement),
+    floors = log10(floors),
+    bathrooms = bathrooms^(1/5),
+    sqm_living15 = log10(sqm_living15),
+    mean_price_zip = mean_price_zip,
+    grade = log10(grade),
+    condition = log10(condition),
+    yr_built = log10(yr_built),
+    lat = log10(lat),
+    week_of_year = log10(week_of_year),
+    month_of_year = log10(month_of_year),
+    sqm_lot15 = log10(sqm_lot15)
+  )
+```
+
+```{r}
+model_7 <- transformed_data %>%
+  lm(data = ., price ~ .)
+
+cv_7 <- cross_val(transformed_data)
+
+p_value_4 <- tidy(t.test(cv_1$distr, cv_5$distr, var.equal = F, alternative = "greater")) %>%
+  select(p.value) %>%
+  unlist() %>%
+  formatC(format = "e")
+
+p_value_5 <- tidy(t.test(cv_5$distr, cv_7$distr, var.equal = F, alternative = "greater")) %>%
+  select(p.value) %>%
+  unlist() %>%
+  formatC(format = "e")
+
+cv_8 <- cross_val(transformed_data_new)
+
+p_values <- tidy(t.test(cv_7$distr, cv_8$distr, var.equal = F, alternative = "greater")) %>%
+  select(p.value) %>%
+  unlist() %>%
+  formatC(format = "e") %>%
+  rbind(" ", p_value_4, p_value_5, .)
+
+model_8 <- transformed_data_new %>%
+  lm(data = ., price ~ .)
+
+Mean_RMSE <- rbind(cv_1$m_rmse, cv_5$m_rmse, cv_7$m_rmse, cv_8$m_rmse)
+SD_RMSE <- rbind(cv_1$sd_rmse, cv_5$sd_rmse, cv_7$sd_rmse, cv_8$sd_rmse)
+
+stopCluster(cl)
+
+cbind(AIC(model_1, model_5, model_7, model_8), Mean_RMSE, SD_RMSE, p_values) %>%
+  kable()
+```
+
+
+
+
+
+
+
+
 
 
