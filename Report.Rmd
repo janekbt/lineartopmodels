@@ -30,6 +30,7 @@ library(broom)
 library(bestNormalize)
 library(doParallel)
 library(parallel)
+#update.packages("kableExtra")
 knitr::opts_chunk$set(cache=TRUE, warning=FALSE)
 #library(kableExtra)
 #options("kableExtra.html.bsTable" = T)
@@ -47,20 +48,16 @@ B <- 100
 k <- 10
 ```
 
+## The goal
+
+Our aim in this project is the construction and refinement of a predictive model which predicts with the highest accuracy possible the price of future house sales in King County, USA, which may be applicable to other countys as well.
 
 ## The dataset
 
-The data consists of house sale prices for King County area, Washington State, which includes Seattle. It contains houses sold between May 2014 and May 2015.
+The data consists of house sale prices for King County area, Washington State, which includes Seattle. It contains houses sold between May 2014 and May 2015. The dataset was obtained from https://www.kaggle.com/harlfoxem/housesalesprediction on December 2018 and consists of `r nrow(raw_data)` observations in `r ncol(raw_data)` variables. The following map displays the geographical distribution of the data points. We can observe that most of the data points being spread around most of the urban areas with smaller amounts in the rural areas.
+\hfill\break
 
-The dataset was obtained from https://www.kaggle.com/harlfoxem/housesalesprediction on December 2018.
-
-- Houses sold between May 2014 and May 2015
-- Observations: **`r nrow(raw_data)`**
-- Variables: **`r ncol(raw_data)`**
-
-The following map displays the geographical distribution of the data points. We can observe that the data is spread around most of the urban areas.
-
-```{r, fig.align = "center", out.width = "300px", out.height = "300px"}
+```{r echo = FALSE, fig.align="center", out.width="450px"}
 knitr::include_graphics("King_county_map.PNG")
 ```
 
@@ -68,45 +65,41 @@ knitr::include_graphics("King_county_map.PNG")
 
 Below is a description of each one of the variables avaliable in the data:
 
-* **id** - Unique ID for each home sold
-* **date** - Date of the home sale 
-* **price** - Price of each home sold 
-* **bedrooms** - Number of bedrooms 
-* **bathrooms** - Number of bathrooms, where .5 accounts for a room with a toilet but no shower 
-* **sqft_living** - Square footage of the apartments interior living space 
-* **sqft_lot** - Square footage of the land space 
-* **floors** - Number of floors 
-* **waterfront** - A dummy variable for whether the apartment was overlooking the waterfront or not 
-* **view** - An index from 0 to 4 of how good the view of the property was 
-* **condition** - An index from 1 to 5 on the condition of the apartment, 
-* **grade** - An index from 1 to 13, where 1-3 falls short of building construction and design, 7 has an average level of construction and design, and 11-13 have a high quality level of construction and design. 
-* **sqft_above** - The square footage of the interior housing space that is above ground level 
-* **sqft_basement** - The square footage of the interior housing space that is below ground level 
-* **yr_built** - The year the house was initially built 
-* **yr_renovated** - The year of the house’s last renovation 
-* **zipcode** - What zipcode area the house is in 
-* **lat** - Latitude 
-* **long** - Longitude 
-* **sqft_living15** - The square footage of interior housing living space for the nearest 15 neighbors 
-* **sqft_lot15** - The square footage of the land lots of the nearest 15 neighbors 
+* id: Unique ID for each home sold
+* date: Date of the home sale 
+* price: Price of each home sold 
+* bedrooms: Number of bedrooms 
+* bathrooms: Number of bathrooms, where .5 accounts for a room with a toilet but no shower 
+* sqft_living: Square footage of the apartments interior living space 
+* sqft_lot: Square footage of the land space 
+* floors: Number of floors 
+* waterfront: A dummy variable for whether the apartment was overlooking the waterfront or not 
+* view: An index from 0 to 4 of how good the view of the property was 
+* condition: An index from 1 to 5 on the condition of the apartment, 
+* grade: An index from 1 to 13, where 1-3 falls short of building construction and design, 7 has an average level of construction and design, and 11-13 have a high quality level of construction and design. 
+* sqft_above: The square footage of the interior housing space that is above ground level 
+* sqft_basement: The square footage of the interior housing space that is below ground level 
+* yr_built: The year the house was initially built 
+* yr_renovated: The year of the house’s last renovation 
+* zipcode: What zipcode area the house is in 
+* lat: Latitude 
+* long: Longitude 
+* sqft_living15: The square footage of interior housing living space for the nearest 15 neighbors 
+* sqft_lot15: The square footage of the land lots of the nearest 15 neighbors 
 
 
 ## Response variable: numeric and visual inspection
 
-```{r include=FALSE}
+Here we observe some descriptive statistics about the sale prices:
+\hfill\break
+
+```{r echo=FALSE}
 Y_col = raw_data$price
+tidy(summary(raw_data$price)) %>% 
+  kable()
 ```
 
-Here we observe some descriptive statistics about the sale prices.
-
-* **Min:** `r min(Y_col)`
-* **1st quartile:** `r quantile(Y_col, 0.25)`
-* **Median:** `r median(Y_col)`
-* **3rd quartile:** `r quantile(Y_col, 0.75)`
-* **Max:** `r max(Y_col)`
-* **Mean (average):** `r round(mean(Y_col), 2)`
-* **Standard deviatiion:** `r round(sd(Y_col), 2)`
-
+\hfill\break
 By looking at the Median and Mean, we suspect right skeweness in the data. We verify this in the following visual inspection of the data:
 
 ```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
@@ -118,9 +111,9 @@ a <- qqPlot(raw_data$price,
             ylab = "")
 ```
 
-Adittionally to confirming our suspicion of right skeweness, we observe in the qq-plot (on the right) that the distribution does not fit the theoretical quantiles of the normal distribution. This goes against the "utopian" assumption of normality for the response variable when attepmting linear regression analysis. 
+Adittionally to confirming our suspicion of right skeweness, we observe in the qq-plot (the one on the right) that the distribution does not fit the theoretical quantiles of the normal distribution. This goes against the "utopian" assumption of normality for the response variable when attempting linear regression analysis. 
 
-In order to improve this, we apply a simple transformation to the response variable. The data is transformed to it's coresponding logarithm base 10. The following are the histogram and qq-plot of the transformed variable:
+In order to improve this, we apply a simple transformation to the response variable. The data is transformed to it's coresponding logarithm with base 10. The following are the histogram and qq-plot of the transformed variable:
 
 ```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
 par(mfrow = c(1,2))
@@ -131,32 +124,56 @@ a <- qqPlot(log10(raw_data$price),
             ylab = "")
 ```
 
-The transformation proves to be a huge improvement in terms of the normality assumption.
+The transformation proves to be a huge improvement in terms of the normality assumption
 
 ## Regarding model selection
 
-In order to pick the "best" model, a criteria must be specified. The P-value presents the problem of multiple testing, and, since we will be conducting several statistical tests, the P-value will not be part of out decision criteria.
+In order to pick the "best" model, a criteria must be specified. The P-value presents the problem of multiple testing, and, since we will be conducting several statistical tests, will only serve as a supporting criteria.
 
 Given this, the following metrics will be used for model comparison instead:
  
 * $AIC$
 * $BIC$
-* $R^2_{adj.}$
 * $RMSE$
 * $T-Test$ $(P-value)$
 
+### Testing procedure
 
+The first model criteria we are considering are the AIC and the BIC. Those are defined as:
+
+\begin{align*}
+    AIC &= -2logL(\hat{\theta}) + 2p \ & \ BIC &= -2logL(\hat{\theta}) + log(n)p\\
+\end{align*}
+
+The AIC is a model selection method which punishes the amount of variables by adding two times the amount of variables to two times the negative log liklihood of $\hat{\theta}$, a lower value being the desired outcome. Considering our datasets great amount of observations (n = `r nrow(raw_data)`) the punishment might be negligible. A better criteria might therefore be the BIC which penalizes the amount of variables by  multiplying them with the log of the amount of observations. The BIC will therefore be our prefered metric of those two.
+
+Our model being a predictive model the most important metric would still be the RMSE, the rooted mean square error, which is a measure of the mean prediction error:
+
+\begin{align*}
+    RMSE &= \left(\sum_{i = 1}^{N} \left(y_{pi} - y_{oi}\right)^{2} \right)^{\frac{1}{2}}
+\end{align*}
+
+with:
+
+  * $y_{pi}$ being the $i$-th predicted response value
+  * $y_{oi}$ being the $i$-th observed response value
+  
+This critria gives us an actual predictive performance measure to compare different models against each other in a meaningful an easy to interpret format, the amount of dollars for which a house was sold. To make this metric and its comparisons even more precise we will use two more different methods.
+
+The first one will be a repeated cross-validation procedure using the k-fold strategy. For this method the data set will be randomly divided into $k$ different folds. Leaving one fold out a model will be fitted against the remaining folds. The model will then attempt to predict the values of the fold previously left out and the RMSE will be calculated. This procedure will be repeated for all the different folds. This whole procedure of calculating the RMSE for all $k$ folds will then again be repeated for $B$ times. In our case we will use $k = 10$ and $B = 100$.
+
+Using all those repeated measurements of the RMSE as a sample distribution we are now able to use the second method of comparison, a one sided two means t-test of the two RMSE distribution of two different model. This gives us a measure of confidence, a p-value, about the difference between those models.
+  
 ## Preliminary data formating
 
 It was necesary to do some initial formating in order to make sense of the data for a linear model, and to add value for the model. The modifications are the following:
 
-  - square feet into square meters
-  - waterfront and renovated into a factor variable
-  - split date into week and month of the year
-  - removed original date variable
-  - removed id because it is not predictive
+  - transforming square feet into square meters
+  - converting waterfront, renovated and zipcode into a factor variable
+  - splitting date into week and month of the year, removing original date variable
+  - removed id because it is not informative
   - split dataset into two parts, 80% and 20% (more on this later)
-  
+\hfill\break
 ```{r message=FALSE, warning=FALSE}
 complete_data <- read_csv("kc_house_data.csv") %>%
   sample_n(nrow(.))
