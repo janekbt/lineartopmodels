@@ -212,11 +212,11 @@ model_1 <- lm(price ~ ., data = data_wo_new_vars)
 summary(model_1)
 ```
 
-There are two peculiarities we can observe. In the first place we observe that the variable sqm_basement was not taken into account and consists solely of NAs. The second observation provides the reason for this behavior: A singularity was discovered. That means that sqm_basement is a linear combination of two or more other variables, sqm_living and sqm_above in this case. The decision to remove those variables will be dealt with during the experimentation phase.
+There are two peculiarities we can observe. In the first place, we observe that the variable sqm_basement was not taken into account and consists solely of NAs. The second observation provides the reason for this behavior: "A singularity was discovered". That means that sqm_basement is a linear combination of two or more other variables, sqm_living and sqm_above in this case. The decision to remove those variables will be dealt with during the experimentation phase.
 
 ## Experimentation
 
-Given that we now have both a baseline model and defined model selection criteria, using a trial and error approach, we can start testing different approaches seeking to improve the model. Among those approaches we will attempt outlier detection, creation of new, meaningful variables, correlation analysis and different kinds of variable transformations. Let us start with outlier detection.
+Given that we now have both a baseline model and have defined a model selection criteria, using a trial and error approach, we can start testing different approaches seeking to improve the model. Among those approaches we will attempt outlier detection, creation of new, meaningful variables, correlation analysis and different kinds of variable transformations. Let us start with outlier detection.
 
 ### Outliers
 
@@ -280,25 +280,37 @@ cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE, p_value_1) %>%
   kable()
 ```
 
-- removing outliers proved successful
-- reduced Mean RMSE by almost 20.000$
-- cut SD RMSE almost in half
-- difference is highly significant (p-value)
-- AIC reduction of 83
-- Next we create new variables
+Out of the resulting summary table, we can draw some conclusions regarding the removal of these outliers:
+
+* By solely looking at the three first metrics (AIC, mean of RMSE and s.d. of RMSE) we can see that removal of outliers proves itself succesful.
+* When looking only at theMean RMSE, we observe it was reduced by almost 20.000$. This, in terms of usefulness as a prediction tool in real life scenarios, is very desirable, given that it provides the end user with a more accurate estimation o the actual values.
+* The standard deviation of RMSErrors was cutted almost by half, meaning that the new models are way more stable.
+* In the last metric of the table, the P-value, we can verify the significance of the conclutions made above. Since the resulting number is very low (highly significant), we proceed to conclude with confidence (>99%) that the previous statements are valid.
+* The AIC was reduced by 83.
+
+In terms of data points (observations) there will be no further additions or removals from now on. So, the next phases of experimentation, are rather column-wise, and focus on the creation, deletion or edition of the variables as a whole.
 
 ### Creating new variables
 
-* Average price by zipcode
-    + sampling 20% of the data
-    + computing average price by zipcode
-    + adding computed averages to remaining 80%
+In this phase, we decided to create some additional variables by using "hidden" data in the current ones, or by creating a simplified version of an existing one.
 
-* Factorize:
-    + view variable into viewed or not viewed
-    + year_renovated into was renovated at all or not
 
-* Still keeping the untransformed data
+#### 1. Average price by zipcode: 
+
+To understand the creation process of this variable and why it is a valid thing to do, it is necessary to explain the 80%-20% data splitting mentioned before in the _Preliminary data formating_ section. 
+
+It goes as follows: Since the splitting of the data, which is made at the very beggining, we have only worked with the 80% chunk, which comes to represent the only "visible data" for our experiments, model comparison, conclusion making and everything else. Given this, we could see the rest of the 20% data as "preconcieved", by this, we intend to pretend as if the information (including the sale prices) provided by this set of observations is available thoughout all the study, while not being considered data leakage since the rows themselves are not being used to train or evaluate any model at any point. 
+
+So, how are we using this data exactly? The answer is: as a summary of prices by zipcode. First we select the zipcode and the price columns in this 20% chunk, then we group the observations by their zipcode and compute the average price within each zipcode, finally in the 80% data chunk, we create a new column containing the average price found in the corresponding zipcode-price pairs obtained with the 20% chunk. In this way, we have obtained additional data to the model, which is related to the prices, without incurring into data leakage.
+
+#### 2. Factorize:
+
+The second and third additional columns, are less complicated, being only a simplification of two current columns. The general reasoning is, rather than using all the values provided in the column, we are only concerned on whether or not there is a non-zero value present. The specific transformations are:
+
+* From the _view_ variable, create a "yes or no" variable indicating if the properties has been viewed or not.
+* From the _year renovated_ variable, create a variables that specifies if the property has ever been renovated or not.
+
+For the following experiment (model 3), we will still keep the untransformed data, along with the new columns.
 
 ```{r warning=FALSE}
 intermediate_3 <- full_data_woo
