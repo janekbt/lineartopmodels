@@ -186,6 +186,8 @@ full_data <- raw_data %>%
   select(-id, -date, -starts_with("sqm"), starts_with("sqm"))
 
 
+
+
 first_fifth_avg <- data_20p %>%
   group_by(zipcode) %>%
   summarise(mean_price_zip = mean(price))
@@ -495,6 +497,7 @@ Mean_RMSE <- rbind(cv_1$m_rmse, cv_5$m_rmse, cv_7$m_rmse, cv_8$m_rmse)
 SD_RMSE <- rbind(cv_1$sd_rmse, cv_5$sd_rmse, cv_7$sd_rmse, cv_8$sd_rmse)
 
 stopCluster(cl)
+
 
 cbind(AIC(model_1, model_5, model_7, model_8), Mean_RMSE, SD_RMSE, p_values) %>%
   kable()
