@@ -300,7 +300,7 @@ cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE, p_value_1) %>%
 Out of the resulting summary table, we can draw some conclusions regarding the removal of these outliers:
 
 * By solely looking at the three first metrics (AIC, mean of RMSE and s.d. of RMSE) we can see that removal of outliers proves itself succesful.
-* When looking only at theMean RMSE, we observe it was reduced by almost 20.000$. This, in terms of usefulness as a prediction tool in real life scenarios, is very desirable, given that it provides the end user with a more accurate estimation o the actual values.
+* When looking only at theMean RMSE, we observe it was reduced by almost 25.000$. This, in terms of usefulness as a prediction tool in real life scenarios, is very desirable, given that it provides the end user with a more accurate estimation o the actual values.
 * The standard deviation of RMSErrors was cutted almost by half, meaning that the new models are way more stable.
 * In the last metric of the table, the P-value, we can verify the significance of the conclutions made above. Since the resulting number is very low (highly significant), we proceed to conclude with confidence (>99%) that the previous statements are valid.
 * The AIC was reduced by 83.
@@ -349,15 +349,19 @@ cbind(AIC(model_2, model_3), Mean_RMSE, SD_RMSE, p_value_2) %>%
   kable()
 ```
 
-- Introducing new variables improved the model
-- reduced Mean RMSE by more than 25.000$
-- reduced SD RMSE by a third
-- difference is highly significant (p-value)
-- very large AIC improvement
-- Next we look at correlation of variables
+Once again, let us analyze the results summary:
 
+* In terms of our comparison criteria, introducing these 3 new variables improves the model.
+* The Mean RMSE is reduced by more than 25.000$
+* The standard deviation of RMSEs remains similar to the previous one. So adding these variables does not destabilizes the model cosiderably.
+* Once Again, the P-value obtained suggests that the difference in the distribution of RMSEs is highly significant when using this additional variables.
+* Considerably large improvement in the AIC metric.
+
+Now that we have attepted and tested creations of new variables, we'll proceed with correlation analysis in the next section, although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them.
 
 ### Correlation analysis
+
+In the following table, we present the correlation coefficients between each of the predictors and the target variable (price). The idea is to determine how linearly related are each of this variables to the response and based on this, do a subselection of the most correlated ones and determine if there is an improvement.
 
 ```{r echo=FALSE, warning=FALSE}
 corrs <- full_data %>%
@@ -382,9 +386,7 @@ cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
   kable()
 ```
 
-* Hypothesis:
-    + We observe a big jump in correlation from 0.107 to 0.314
-    + Dropping all variables below 0.314 might decrease prediction error
+Looking at the table, we draw the following hypothesis: Given that we observe a big jump in correlation from 0.107 to 0.314 in between the yr_renovated and floor columns, then dropping all variables with a correlation below 0.314 might decrease prediction error.
 
 ```{r warning=FALSE}
 intermediate_4 <- full_data_woo %>%
@@ -406,6 +408,10 @@ p_value_3 <- tidy(t.test(cv_3$distr, cv_4$distr, var.equal = F, alternative = "g
 cbind(AIC(model_3, model_4), Mean_RMSE, SD_RMSE, p_value_3) %>%
   kable()
 ```
+
+As we can see, although the variability of the predictions is reduced, the actual mean of the RMSEs slightly increases, which is not a desirable result. This together with the slight increase of the AIC, dropping the less correlated variables decreases the model performance. Looking at the P-value however, helps realize that this conclusions are not very significant, and the actual difference in including or not this variables is rather neglegible.
+
+
 
 ### Variable selection
 
