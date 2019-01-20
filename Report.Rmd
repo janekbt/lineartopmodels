@@ -293,7 +293,7 @@ p_value_1 <- tidy(t.test(cv_1$distr, cv_2$distr, var.equal = F, alternative = "g
 Mean_RMSE <- round(rbind(cv_1$m_rmse, cv_2$m_rmse), 0)
 SD_RMSE <- round(rbind(cv_1$sd_rmse, cv_2$sd_rmse), 0)
 
-cbind(AIC(model_1, model_2), Mean_RMSE, SD_RMSE, p_value_1) %>%
+cbind(BIC(model_1, model_2), Mean_RMSE, SD_RMSE, p_value_1) %>%
   kable()
 ```
 
@@ -320,17 +320,10 @@ It goes as follows: Since the splitting of the data, which is made at the very b
 
 So, how are we using this data exactly? The answer is: as a summary of prices by zipcode. First we select the zipcode and the price columns in this 20% chunk, then we group the observations by their zipcode and compute the average price within each zipcode, finally in the 80% data chunk, we create a new column containing the average price found in the corresponding zipcode-price pairs obtained with the 20% chunk. In this way, we have obtained additional data to the model, which is related to the prices, without incurring into data leakage.
 
-#### 2. Factorize:
-
-The second and third additional columns, are less complicated, being only a simplification of two current columns. The general reasoning is, rather than using all the values provided in the column, we are only concerned on whether or not there is a non-zero value present. The specific transformations are:
-
-* From the _view_ variable, create a "yes or no" variable indicating if the properties has been viewed or not.
-* From the _year renovated_ variable, create a variables that specifies if the property has ever been renovated or not.
-
-For the following experiment (model 3), we will still keep the untransformed data, along with the new columns.
 
 ```{r warning=FALSE}
-intermediate_3 <- full_data_woo
+intermediate_3 <- full_data_woo %>% 
+  select(-wasViewed, -renovated)
 
 model_3 <- lm(price ~ ., data = intermediate_3)
 
@@ -339,15 +332,16 @@ cv_3 <- cross_val(intermediate_3)
 p_value_2 <- tidy(t.test(cv_2$distr, cv_3$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
-  formatC(format = "e") %>% 
-  rbind(" ",.)
+  formatC(format = "e")
 
-Mean_RMSE <- round(rbind(cv_2$m_rmse, cv_3$m_rmse), 0)
-SD_RMSE <- round(rbind(cv_2$sd_rmse, cv_3$sd_rmse), 0)
+Mean_RMSE <- round(rbind(cv_2$m_rmse, cv_3$m_rmse))
+SD_RMSE <- round(rbind(cv_2$sd_rmse, cv_3$sd_rmse))
+p_vals <- rbind(" ", p_value_2)
 
-cbind(AIC(model_2, model_3), Mean_RMSE, SD_RMSE, p_value_2) %>%
+cbind(BIC(model_2, model_3), Mean_RMSE, SD_RMSE, p_vals) %>%
   kable()
 ```
+
 
 - Introducing new variables improved the model
 - reduced Mean RMSE by more than 25.000$
@@ -356,6 +350,47 @@ cbind(AIC(model_2, model_3), Mean_RMSE, SD_RMSE, p_value_2) %>%
 - very large AIC improvement
 - Next we look at correlation of variables
 
+#### 2. Factorize:
+
+The second and third additional columns, are less complicated, being only a simplification of two current columns. The general reasoning is, rather than using all the values provided in the column, we are only concerned on whether or not there is a non-zero value present. The specific transformations are:
+
+* From the _view_ variable, create a "yes or no" variable indicating if the properties has been viewed or not.
+* From the _year renovated_ variable, create a variables that specifies if the property has ever been renovated or not.
+
+For the following experiment (model 3), we will test if adding the transformed variables will improve the model as well as whether we should keep the untransformed original ones on which the new ones are based or not.
+
+```{r}
+intermediate_3.1 <- full_data_woo
+model_3.1 <- lm(price ~ ., data = intermediate_3.1)
+
+cv_3.1 <- cross_val(intermediate_3.1)
+
+p_value_2.1 <- tidy(t.test(cv_3$distr, cv_3.1$distr, var.equal = F, alternative = "greater")) %>% 
+  select(p.value) %>% 
+  unlist() %>% 
+  formatC(format = "e")
+
+intermediate_3.2 <- full_data_woo %>% 
+  select(-view, -yr_renovated)
+
+model_3.2 <- lm(price ~ ., data = intermediate_3.2)
+
+cv_3.2 <- cross_val(intermediate_3.2)
+
+p_value_2.2 <- tidy(t.test(cv_3.1$distr, cv_3.2$distr, var.equal = F, alternative = "greater")) %>% 
+  select(p.value) %>% 
+  unlist() %>% 
+  formatC(format = "e")
+
+Mean_RMSE <- round(rbind(cv_3$m_rmse, cv_3.1$m_rmse, cv_3.2$m_rmse))
+SD_RMSE <- round(rbind(cv_3$sd_rmse, cv_3.1$sd_rmse, cv_3.2$sd_rmse))
+p_vals <- rbind(" ", p_value_2.1, p_value_2.2)
+
+cbind(BIC(model_3, model_3.1, model_3.2), Mean_RMSE, SD_RMSE, p_vals) %>%
+  kable()
+```
+
+- old variables will stay because of no difference in p-value and worse BIC if we throw them out
 
 ### Correlation analysis
 
@@ -403,33 +438,23 @@ p_value_3 <- tidy(t.test(cv_3$distr, cv_4$distr, var.equal = F, alternative = "g
   formatC(format = "e") %>% 
   rbind(" ",.)
 
-cbind(AIC(model_3, model_4), Mean_RMSE, SD_RMSE, p_value_3) %>%
+cbind(BIC(model_3, model_4), Mean_RMSE, SD_RMSE, p_value_3) %>%
   kable()
 ```
 
 ### Variable selection
 
-* **sqm_living** is a linear combination of **sqm_basement** and **sqm_above**.
-* Deleting variables because of redundancy
-    + choosing the best transformations first
-    + then drop the variable of the worse perfoming model
-
+As we saw earlier the variable sqm_living is a linear combination of sqm_above and sqm_basement. Thus it might be reasonable to select the best performing model with a certain subset of those variables. To figure that out we first tried to find the best transformation of the all of those variables under the assumption that doing so might improve the RMSE. We used the function bestNormalize which tries a whole array of different transformations on the variables and returns the best one.
+\hfill\break
 ```{r}
-norm.it <- function(data){
-  bestNormalize(data, cluster = cl)$x.t
-}
-
-base <- bestNormalize(full_data_woo$sqm_basement, cluster = cl)
-
 intermediate_5 <- full_data_woo %>%
-  mutate_at(vars(sqm_above, sqm_basement), norm.it) %>%
+  mutate_at(vars(sqm_above, sqm_basement), sqrt) %>%
   dplyr::select(-sqm_living)
-
 
 model_5 <- lm(data = intermediate_5, price ~ .)
 
 intermediate_6 <- full_data_woo %>%
-  mutate_at(vars(sqm_living), norm.it) %>%
+  mutate_at(vars(sqm_living), sqrt) %>%
   dplyr::select(-sqm_above, -sqm_basement) 
 
 model_6 <- lm(data = intermediate_6, price ~ .)
@@ -440,7 +465,7 @@ s_model_6 <- summary(model_6)
 cv_5 <- cross_val(intermediate_5)
 cv_6 <- cross_val(intermediate_6)
 
-p_value_4 <- tidy(t.test(cv_5$distr, cv_6$distr, var.equal = F, alternative = "greater")) %>% 
+p_value_4 <- tidy(t.test(cv_5$distr, cv_6$distr, var.equal = F)) %>% 
   select(p.value) %>% 
   unlist() %>% 
   formatC(format = "e") 
@@ -470,11 +495,67 @@ a %>%
   kable()
 ```
 
+
+
 ```{r}
+norm.it <- function(data){
+  bestNormalize(data, cluster = cl, r = 10)$x.t
+}
+
 transformed_data_new <- full_data_woo %>%
-  select(-price, -sqm_living, -sqm_basement) %>% 
+  select(-price, -sqm_living) %>% 
   mutate_if(is.numeric, norm.it) %>% 
-  cbind(price = full_data_woo$price, ., base$x.t)
+  cbind(price = full_data_woo$price, .)
+
+
+int_col_names <- full_data_woo %>% 
+  select_if(function(col) is.integer(col) | is.double(col)) %>%
+  select(-long) %>% 
+  colnames()
+
+results <- character(length(int_col_names)-1)
+names(results) <- int_col_names[-1]
+
+for (i in 2:length(int_col_names)) {
+  no_trans <- full_data_woo %>% 
+  lm(price ~ ., data = .)
+
+  square_rt <- full_data_woo %>% 
+    modify_at(int_col_names[i], sqrt) %>% 
+    lm(price ~ ., data = .)
+  
+  loga <- full_data_woo %>% 
+    modify_at(int_col_names[i], function(x) log_x(x, a = 1)$x.t) %>% 
+    lm(price ~ ., data = .)
+
+  power_2 <- full_data_woo %>% 
+    modify_at(int_col_names[i], function(x) x^2) %>% 
+    lm(price ~ ., data = .)
+
+  power_3 <- full_data_woo %>% 
+    modify_at(int_col_names[i], function(x) x^3) %>% 
+    lm(price ~ ., data = .)
+
+  power_4 <- full_data_woo %>% 
+    modify_at(int_col_names[i], function(x) x^4) %>% 
+    lm(price ~ ., data = .)
+
+  power_5 <- full_data_woo %>% 
+    modify_at(int_col_names[i], function(x) x^5) %>% 
+    lm(price ~ ., data = .)
+  
+  power_6 <- full_data_woo %>% 
+    modify_at(int_col_names[i], function(x) x^6) %>% 
+    lm(price ~ ., data = .)
+  
+  power_10 <- full_data_woo %>% 
+    modify_at(int_col_names[i], function(x) x^10) %>% 
+    lm(price ~ ., data = .)
+
+  bics <- BIC(no_trans, square_rt, loga, power_2, power_3, power_4, power_5, power_6, power_10)
+  bics_names <- c("no_trans", "square_rt", "loga", "power_2", "power_3", "power_4", "power_5", "power_6", "power_10")
+  results[i-1] <- bics_names[which(bics[,2] == min(bics[,2]))]
+}
 
 transformed_data <- full_data_woo %>%
   select(-sqm_living) %>%
@@ -493,6 +574,7 @@ transformed_data <- full_data_woo %>%
     month_of_year = log10(month_of_year),
     sqm_lot15 = log10(sqm_lot15)
   )
+# Needs to be updated
 ```
 
 ```{r}
@@ -528,7 +610,7 @@ SD_RMSE <- rbind(cv_1$sd_rmse, cv_5$sd_rmse, cv_7$sd_rmse, cv_8$sd_rmse)
 stopCluster(cl)
 
 
-cbind(AIC(model_1, model_5, model_7, model_8), Mean_RMSE, SD_RMSE, p_values) %>%
+cbind(BIC(model_1, model_5, model_7, model_8), Mean_RMSE, SD_RMSE, p_values) %>%
   kable()
 ```
 
