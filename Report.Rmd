@@ -391,7 +391,9 @@ cbind(BIC(model_3, model_3.1, model_3.2), Mean_RMSE, SD_RMSE, p_vals) %>%
   kable()
 ```
 
-NEED SOME DISCUSSION ABOUT RESULTS !!!
+As the tests reveal, keeping the factorized variables while removing the variables they are based on (model 3.2) proved to be of no improvement at all. If anything it decreases the accuracy in terms of the BIC. 
+
+On the other hand factorizing while keeping the original variables (model 3.1) improves the model performance slightly as indicated by the drop in BIC of about 50 points. The mean RMSE was reduced to some extent as well, although the p-value indicates a low chance of this difference to be significant.
 
 Now that we have attepted and tested creations of new variables, we'll proceed with correlation analysis in the next section, although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them.
 
@@ -425,10 +427,6 @@ cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
 Looking at the table, we draw the following hypothesis: Given that we observe a big jump in correlation from 0.107 to 0.314 in between the yr_renovated and floor columns, then dropping all variables with a correlation below 0.314 might decrease prediction error.
 
 ```{r warning=FALSE}
-
-full_data_woo <- full_data_woo %>% 
-  select(-wasViewed, -renovated)
-
 intermediate_4 <- full_data_woo %>%
   dplyr::select(one_of(good_corr), waterfront)
 
@@ -455,11 +453,15 @@ As we can see, although the variability of the predictions is reduced, the actua
 
 ### Variable selection
 
-As we saw earlier the variable sqm_living is a linear combination of sqm_above and sqm_basement. Thus it might be reasonable to select the best performing model with a certain subset of those variables. To figure that out we first tried to find the best transformation of the all of those variables under the assumption that doing so might improve the RMSE. We used the function bestNormalize which tries a whole array of different transformations on the variables and returns the best one.
+As we saw earlier the variable sqm_living is a linear combination of sqm_above and sqm_basement. Thus it might be reasonable to select the best performing model with a certain subset of those variables. To figure that out we first tried to find the best transformation of the all of those variables under the assumption that doing so might improve the RMSE. We used an array of different transformations for each variable seperately and evaluated the impact through the change in the BIC compared to a model containing the untransformed variable.
+
 \hfill\break
 ```{r}
 intermediate_5 <- full_data_woo %>%
-  mutate_at(vars(sqm_above, sqm_basement), sqrt) %>%
+  mutate(
+    sqm_above = sqrt(sqm_above),
+    sqm_basement = sqrt(sqm_basement)
+    ) %>% 
   dplyr::select(-sqm_living)
 
 model_5 <- lm(data = intermediate_5, price ~ .)
@@ -506,19 +508,13 @@ a %>%
   kable()
 ```
 
+Comparing both models with each other, the result is quite inconclusive. On the one hand, the p-value indicates that there is no significant difference between their distributions of RMSEs. According to the priciple of parsimony one should stick with the second model, containing sqm_living instead of sqm_basement and sqm_above, due to a reduced amount of variables.
 
+However the BIC, AIC and the adjusted $R^2$ suggest the first model to be the more precise one and that's why we have chosen to stick to this particular model.
+
+Applying the aforementioned method of trying different transformations on variables we are now going to use it for all the other variables as well. We will then compare this last model with the untransformed previous one as well as the very first model to have an overview of progress we made as well as to provide us with a last comparison to draw our final conclusion. 
 
 ```{r}
-norm.it <- function(data){
-  bestNormalize(data, cluster = cl, r = 10)$x.t
-}
-
-transformed_data_new <- full_data_woo %>%
-  select(-price, -sqm_living) %>% 
-  mutate_if(is.numeric, norm.it) %>% 
-  cbind(price = full_data_woo$price, .)
-
-
 int_col_names <- full_data_woo %>% 
   select_if(function(col) is.integer(col) | is.double(col)) %>%
   select(-long) %>% 
@@ -565,7 +561,7 @@ for (i in 2:length(int_col_names)) {
 
   bics <- BIC(no_trans, square_rt, loga, power_2, power_3, power_4, power_5, power_6, power_10)
   bics_names <- c("no_trans", "square_rt", "loga", "power_2", "power_3", "power_4", "power_5", "power_6", "power_10")
-  results[i-1] <- bics_names[which(bics[,2] == min(bics[,2]))]
+  results[i - 1] <- bics_names[which(bics[, 2] == min(bics[, 2]))]
 }
 
 transformed_data <- full_data_woo %>%
@@ -604,24 +600,14 @@ p_value_5 <- tidy(t.test(cv_5$distr, cv_7$distr, var.equal = F, alternative = "g
   unlist() %>%
   formatC(format = "e")
 
-cv_8 <- cross_val(transformed_data_new)
 
-p_values <- tidy(t.test(cv_7$distr, cv_8$distr, var.equal = F, alternative = "greater")) %>%
-  select(p.value) %>%
-  unlist() %>%
-  formatC(format = "e") %>%
-  rbind(" ", p_value_4, p_value_5, .)
-
-model_8 <- transformed_data_new %>%
-  lm(data = ., price ~ .)
-
-Mean_RMSE <- rbind(cv_1$m_rmse, cv_5$m_rmse, cv_7$m_rmse, cv_8$m_rmse)
-SD_RMSE <- rbind(cv_1$sd_rmse, cv_5$sd_rmse, cv_7$sd_rmse, cv_8$sd_rmse)
+Mean_RMSE <- rbind(cv_1$m_rmse, cv_5$m_rmse, cv_7$m_rmse)
+SD_RMSE <- rbind(cv_1$sd_rmse, cv_5$sd_rmse, cv_7$sd_rmse)
 
 stopCluster(cl)
 
 
-cbind(BIC(model_1, model_5, model_7, model_8), Mean_RMSE, SD_RMSE, p_values) %>%
+cbind(BIC(model_1, model_5, model_7), Mean_RMSE, SD_RMSE, p_values) %>%
   kable()
 ```
 
