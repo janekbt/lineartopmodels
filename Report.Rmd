@@ -1,9 +1,13 @@
 ---
 title: "Report"
 author: "Nicolas Carmona, Niklas Tillenburg, Janek Teders"
-date: "January 18, 2019"
+date: "January 21, 2019"
 classoption: table
-output: pdf_document
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    number_sections: false
 subtitle: A predictive model of house prices in King County, USA
 ---
 
@@ -32,38 +36,44 @@ library(doParallel)
 library(parallel)
 #update.packages("kableExtra")
 knitr::opts_chunk$set(cache=TRUE, warning=FALSE)
-#library(kableExtra)
+options(kableExtra.latex.load_packages = FALSE)
+library(kableExtra)
 #options("kableExtra.html.bsTable" = T)
 options(scipen=999)
-#options(kableExtra.latex.load_packages = FALSE)
+
 
 cl <- makeCluster(detectCores())
 registerDoParallel(cl)
 
-raw_data <- readRDS("raw_data.rds")
-full_data <- readRDS("full_data.rds")
-full_data_woo <- readRDS("full_data_woo.rds")
+#raw_data <- readRDS("raw_data.rds")
+#full_data <- readRDS("full_data.rds")
+#full_data_woo <- readRDS("full_data_woo.rds")
 
 B <- 100
 k <- 10
 ```
+\hfill\break
+
+**Disclaimer:** All members of this group contributed equally to this project.
+
+\newpage
 
 ## The goal
 
-Our aim in this project is the construction and refinement of a predictive model which predicts with the highest accuracy possible the price of future house sales in King County, USA, which may be applicable to other countys as well.
+Our aim in this project is the construction and refinement of a predictive model which predicts with the highest accuracy possible the price of future house sales in King County, USA, which may be applicable to other counties as well.
 
 ## The dataset
 
-The data consists of house sale prices for King County area, Washington State, which includes Seattle. It contains houses sold between May 2014 and May 2015. The dataset was obtained from https://www.kaggle.com/harlfoxem/housesalesprediction on December 2018 and consists of `r nrow(raw_data)` observations in `r ncol(raw_data)` variables. The following map displays the geographical distribution of the data points. We can observe that most of the data points being spread around most of the urban areas with smaller amounts in the rural areas.
+The data consists of house sale prices for King County area, Washington State, which includes Seattle. It contains houses sold between May 2014 and May 2015. The dataset was obtained from https://www.kaggle.com/harlfoxem/housesalesprediction on December 2018 and consists of 21613 observations in 21 variables. The following map displays the geographical distribution of the data points. We can observe the data points being spread around most of the urban areas with smaller amounts in the rural areas.
 \hfill\break
 
 ```{r echo = FALSE, fig.align="center", out.width="450px"}
 knitr::include_graphics("King_county_map.PNG")
 ```
 
-## Variables
+## The variables
 
-Below is a description of each one of the variables avaliable in the data:
+Below is a description of each one of the variables available in the data:
 
 * id: Unique ID for each home sold
 * date: Date of the home sale 
@@ -88,19 +98,29 @@ Below is a description of each one of the variables avaliable in the data:
 * sqft_lot15: The square footage of the land lots of the nearest 15 neighbors 
 
 
-## Response variable: numeric and visual inspection
+## The response variable: numeric and visual inspection
 
 Here we observe some descriptive statistics about the sale prices:
 \hfill\break
 
-```{r echo=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+complete_data <- read_csv("kc_house_data.csv") %>%
+  sample_n(nrow(.))
+
+raw_data <- complete_data %>%
+  slice((n()/5):n())
+
+data_20p <- complete_data %>%
+  slice(1:(n()/5))
+
 Y_col = raw_data$price
 tidy(summary(raw_data$price)) %>% 
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
 \hfill\break
-By looking at the Median and Mean, we suspect right skeweness in the data. We verify this in the following visual inspection of the data:
+By looking at the median and mean, we suspect skewness to the right in the data. We verify this in the following visual inspection of the data:
 
 ```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
 par(mfrow = c(1,2))
@@ -111,9 +131,9 @@ a <- qqPlot(raw_data$price,
             ylab = "")
 ```
 
-Adittionally to confirming our suspicion of right skeweness, we observe in the qq-plot (the one on the right) that the distribution does not fit the theoretical quantiles of the normal distribution. This goes against the "utopian" assumption of normality for the response variable when attempting linear regression analysis. 
-
-In order to improve this, we apply a simple transformation to the response variable. The data is transformed to it's coresponding logarithm with base 10. The following are the histogram and qq-plot of the transformed variable:
+Additionally to confirming our suspicion of skewness to the right, we observe in the qq-plot (the one on the right) that the distribution does not fit the theoretical quantiles of the normal distribution. This goes against the "utopian" assumption of normality for the response variable when attempting linear regression analysis. 
+\newpage
+In order to improve this, we apply a simple transformation to the response variable. The data is transformed to it's corresponding logarithm with base 10. The following are the histogram and qq-plot of the transformed variable:
 
 ```{r echo=FALSE, fig.align = "center", fig.width=10.3, fig.height=5.5}
 par(mfrow = c(1,2))
@@ -124,20 +144,20 @@ a <- qqPlot(log10(raw_data$price),
             ylab = "")
 ```
 
-The transformation proves to be a huge improvement in terms of the normality assumption
+Although a perfect fit is difficult to achieve, the transformation proves to be a huge improvement in terms of the normality assumption.
 
-## Regarding model selection
+## The model selection
 
-In order to pick the "best" model, a criteria must be specified. The P-value presents the problem of multiple testing, and, since we will be conducting several statistical tests, will only serve as a supporting criteria.
+In order to pick the best model, criteria must be specified. The p-value presents the problem of multiple testing, and, since we will be conducting several statistical tests, will only serve as a supporting criteria.
 
 Given this, the following metrics will be used for model comparison instead:
  
 * $AIC$
 * $BIC$
 * $RMSE$
-* $T-Test$ $(P-value)$
+* $T-Test$ $(p-value)$
 
-### Testing procedure
+### The testing procedure
 
 The first model criteria we are considering are the AIC and the BIC. Those are defined as:
 
@@ -145,9 +165,9 @@ The first model criteria we are considering are the AIC and the BIC. Those are d
     AIC &= -2logL(\hat{\theta}) + 2p \ & \ BIC &= -2logL(\hat{\theta}) + log(n)p\\
 \end{align*}
 
-The AIC is a model selection method which punishes the amount of variables by adding two times the amount of variables to two times the negative log liklihood of $\hat{\theta}$, a lower value being the desired outcome. Considering our datasets great amount of observations (n = `r nrow(raw_data)`) the punishment might be negligible. A better criteria might therefore be the BIC which penalizes the amount of variables by  multiplying them with the log of the amount of observations. The BIC will therefore be our prefered metric of those two.
-
-Our model being a predictive model the most important metric would still be the RMSE, the rooted mean square error, which is a measure of the mean prediction error:
+The AIC is a model selection method which punishes the amount of variables by adding two times the amount of variables to two times the negative log likelihood of $\hat{\theta}$, a lower value being the desired outcome. Considering our data sets great amount of observations (n = 21613) the punishment might be negligible. A better criterion might therefore be the BIC which penalizes the amount of variables by  multiplying them with the log of the amount of observations. The BIC will therefore be our preferred metric of those two.
+\newpage
+Given that we are developing a predictive model, the most important metric would still be the RMSE, the rooted mean square error, which is a measure of the mean prediction error:
 
 \begin{align*}
     RMSE &= \left(\sum_{i = 1}^{N} \left(y_{pi} - y_{oi}\right)^{2} \right)^{\frac{1}{2}}
@@ -158,32 +178,24 @@ with:
   * $y_{pi}$ being the $i$-th predicted response value
   * $y_{oi}$ being the $i$-th observed response value
   
-This critria gives us an actual predictive performance measure to compare different models against each other in a meaningful an easy to interpret format, the amount of dollars for which a house was sold. To make this metric and its comparisons even more precise we will use two more different methods.
+This criterion gives us an actual predictive performance measurement to compare different models against each other in a meaningful an easy to interpret format, the amount of dollars for which a house was sold. To make this metric and its comparisons even more precise we will use two more different methods.
 
 The first one will be a repeated cross-validation procedure using the k-fold strategy. For this method the data set will be randomly divided into $k$ different folds. Leaving one fold out a model will be fitted against the remaining folds. The model will then attempt to predict the values of the fold previously left out and the RMSE will be calculated. This procedure will be repeated for all the different folds. This whole procedure of calculating the RMSE for all $k$ folds will then again be repeated for $B$ times. In our case we will use $k = 10$ and $B = 100$.
 
 Using all those repeated measurements of the RMSE as a sample distribution we are now able to use the second method of comparison, a one sided two means t-test of the two RMSE distribution of two different model. This gives us a measure of confidence, a p-value, about the difference between those models.
-  
-## Preliminary data formating
 
-It was necesary to do some initial formating in order to make sense of the data for a linear model, and to add value for the model. The modifications are the following:
+## The a priori data formating
+
+It was necessary to do some initial formatting in order to make sense of the data for a linear model. The modifications are the following:
 
   - transforming square feet into square meters
-  - converting waterfront, renovated and zipcode into a factor variable
-  - splitting date into week and month of the year, removing original date variable
-  - removed id because it is not informative
-  - split dataset into two parts, 80% and 20% (more on this later)
+  - converting waterfront, renovated and zipcode into factor variables
+  - splitting date into week and month of the year, removing the original date variable
+  - removing id because it is not informative
+  - splitting dataset into two parts, 80% and 20% (the reserved part, more on this later)
 \hfill\break
+
 ```{r message=FALSE, warning=FALSE}
-complete_data <- read_csv("kc_house_data.csv") %>%
-  sample_n(nrow(.))
-
-raw_data <- complete_data %>%
-  slice((n()/5):n())
-
-data_20p <- complete_data %>%
-  slice(1:(n()/5))
-
 full_data <- raw_data %>%
   mutate_at(
     vars(starts_with("sqft")),
@@ -202,9 +214,6 @@ full_data <- raw_data %>%
   ) %>%
   select(-id, -date, -starts_with("sqm"), starts_with("sqm"))
 
-
-
-
 first_fifth_avg <- data_20p %>%
   group_by(zipcode) %>%
   summarise(mean_price_zip = mean(price))
@@ -217,9 +226,11 @@ full_data <- full_data %>%
   )
 ```
 
+
 ## The first model
 
-In the first model only the useful original variables will be included with minimal formating to provide a baseline for comparison.
+In the first model only the useful original variables will be included with minimal formatting to provide a baseline for comparison.
+\hfill\break
 
 ```{r}
 data_wo_new_vars <- full_data %>%
@@ -229,18 +240,28 @@ model_1 <- lm(price ~ ., data = data_wo_new_vars)
 summary(model_1)
 ```
 
-There are two peculiarities we can observe. In the first place, we observe that the variable sqm_basement was not taken into account and consists solely of NAs. The second observation provides the reason for this behavior: "A singularity was discovered". That means that sqm_basement is a linear combination of two or more other variables, sqm_living and sqm_above in this case. The decision to remove those variables will be dealt with during the experimentation phase.
+\hfill\break
+There are two peculiarities we can observe. In the first place, we noticed the variable sqm_basement was not taken into account and consists solely of NAs. The second observation provides the reason for this behavior: "A singularity was discovered". This means that sqm_basement is a linear combination of two or more other variables, sqm_living and sqm_above in this case. The decision to remove those variables will be dealt with during the experimentation phase.
 
-## Experimentation
+## The experimentation procedure
 
-Given that we now have both a baseline model and have defined a model selection criteria, using a trial and error approach, we can start testing different approaches seeking to improve the model. Among those approaches we will attempt outlier detection, creation of new, meaningful variables, correlation analysis and different kinds of variable transformations. Let us start with outlier detection.
+Given that we now have both a baseline model and defined our model selection criteria, using a trial and error approach, we can start testing different approaches seeking to improve the model. Among those approaches we will attempt outlier detection, creation of new and meaningful variables, correlation analysis and different kinds of variable transformations. Let us start with outlier detection.
 
-### Outliers
+### The outliers
 
 Outliers, depending on their impact, may have a detrimental effect on the capacity of a model to effectively fit itself to the general patterns of the data and not just the present sample, which decreases its predictive ability. To find those divergent data points we will have a look at their leverage and the cook's distance.
 
-* **Leverage**: The power to shift the model towards that specific data point
-* **Cook's distance**: Measures the aggregated influence of that observation on the fitted values
+* Leverage: The power to shift the model towards that specific data point
+
+\begin{align*}
+    h_i &= \frac{1}{n} + \frac{\left( x_i- \bar{x}\right)^{2}}{\sum_{i'=1}^{n} \left(x_{i'} - \bar{x} \right)^{2}}
+\end{align*}
+
+* Cook's distance: Measures the aggregated influence of that observation on the fitted values
+
+\begin{align*}
+    D_i &= \frac{E_{i}^{2}}{k+1} \cdot \frac{h_i}{1-h_i}
+\end{align*}
 
 ```{r}
 par(mfrow = c(1,2))
@@ -248,9 +269,14 @@ plot(model_1, which=5)
 plot(model_1, which=4)
 ```
 
-Inspecting the cooks distance plot we find that there are 4 highly influential data points. For the following test we will fit a linear model without these aforementioned observations and compare it to our baseline model.
+Inspecting the cook's distance plot we find that there are 4 highly influential data points. For the following test we will fit a linear model without these aforementioned observations and compare it to our baseline model. Note that in the following tables the p-value refers to a one sided t-test of the model it is next to with the model directly above.
+\hfill\break
 
 ```{r}
+full_data_woo <- full_data %>%
+  #select(-wasViewed, -renovated, -mean_price_zip) %>%
+  slice(c(-11520, -3183, -6187, -8844))
+
 cross_val <- function(data, B = 100, k = 10){
   n <- nrow(data)
   folds <- sample(rep(c(1:k), length.out = nrow(data)))
@@ -284,7 +310,8 @@ model_2 <- intermediate_1 %>%
 cv_2 <- cross_val(intermediate_1)
 cv_1 <- cross_val(intermediate_2)
 
-p_value_1 <- tidy(t.test(cv_1$distr, cv_2$distr, var.equal = F, alternative = "greater")) %>% 
+p_value_1 <- 
+  tidy(t.test(cv_1$distr, cv_2$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
   formatC(format = "e") %>% 
@@ -294,32 +321,34 @@ Mean_RMSE <- round(rbind(cv_1$m_rmse, cv_2$m_rmse), 0)
 SD_RMSE <- round(rbind(cv_1$sd_rmse, cv_2$sd_rmse), 0)
 
 cbind(BIC(model_1, model_2), Mean_RMSE, SD_RMSE, p_value_1) %>%
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
+\hfill\break
 Out of the resulting summary table, we can draw some conclusions regarding the removal of these outliers:
 
-* By solely looking at the three first metrics (AIC, mean of RMSE and s.d. of RMSE) we can see that removal of outliers proves itself succesful.
-* When looking only at theMean RMSE, we observe it was reduced by almost 25.000$. This, in terms of usefulness as a prediction tool in real life scenarios, is very desirable, given that it provides the end user with a more accurate estimation o the actual values.
-* The standard deviation of RMSErrors was cutted almost by half, meaning that the new models are way more stable.
-* In the last metric of the table, the P-value, we can verify the significance of the conclutions made above. Since the resulting number is very low (highly significant), we proceed to conclude with confidence (>99%) that the previous statements are valid.
-* The AIC was reduced by 83.
+* By solely looking at the three first metrics (AIC, mean of RMSE and s.d. of RMSE) we can see that removal of outliers proved to be successful.
+* When looking only at the mean RMSE, we observe it was reduced by about 20.000$. This, in terms of usefulness as a prediction tool in real life scenarios, is very desirable, given that it provides the end user with a more accurate estimation of the actual values.
+* The standard deviation of RMSE errors was cut almost by half, meaning that the new models are way more stable.
+* The last metric of the table, the p-value, verifies the significance of the conclusions made above. Since the resulting number is very low (highly significant), we proceed to conclude with enough confidence (>99%) that the previous statements are valid.
+* The BIC was reduced by 83.
 
 In terms of data points (observations) there will be no further additions or removals from now on. So, the next phases of experimentation, are rather column-wise, and focus on the creation, deletion or edition of the variables as a whole.
 
-### Creating new variables
+### The creating of new variables
 
-In this phase, we decided to create some additional variables by using "hidden" data in the current ones, or by creating a simplified version of an existing one.
+In this phase we decided to create some additional variables by using some the reserved part of the data in the current ones or by creating a simplified version of an existing one.
 
 
-#### 1. Average price by zipcode: 
+#### The "Average price by zipcode" variable: 
 
 To understand the creation process of this variable and why it is a valid thing to do, it is necessary to explain the 80%-20% data splitting mentioned before in the _Preliminary data formating_ section. 
 
-It goes as follows: Since the splitting of the data, which is made at the very beggining, we have only worked with the 80% chunk, which comes to represent the only "visible data" for our experiments, model comparison, conclusion making and everything else. Given this, we could see the rest of the 20% data as "preconcieved", by this, we intend to pretend as if the information (including the sale prices) provided by this set of observations is available thoughout all the study, while not being considered data leakage since the rows themselves are not being used to train or evaluate any model at any point. 
+It goes as follows: Since the split of the data, made at the very beginning, we have only worked with the 80% chunk, which comes to represent the only usable data for our experiments, model comparison, conclusion making and everything else. Given this, we could see the rest of the 20% data as "preconceived". By doing so, we intend to pretend as if the information (including the sale prices) provided by this usable set of observations is available throughout all the study. It is not considered data leakage since the rows themselves are not being used to train or evaluate any model at any point. 
 
-So, how are we using this data exactly? The answer is: as a summary of prices by zipcode. First we select the zipcode and the price columns in this 20% chunk, then we group the observations by their zipcode and compute the average price within each zipcode, finally in the 80% data chunk, we create a new column containing the average price found in the corresponding zipcode-price pairs obtained with the 20% chunk. In this way, we have obtained additional data to the model, which is related to the prices, without incurring into data leakage.
-
+So, how are we utilizing this data exactly? By using them as a summary of prices by zipcode. First we select the zipcode and the price columns in this 20% chunk, then we group the observations by their zipcode and compute the average price within each zipcode. Finally in the 80% data chunk, we create a new column containing the average price found in the corresponding zipcode-price pairs obtained with the 20% chunk. In this way, we have obtained additional data to the model, which is related to the prices, without falling prey to data leakage.
+\hfill\break
 
 ```{r warning=FALSE}
 intermediate_3 <- full_data_woo %>% 
@@ -329,7 +358,8 @@ model_3 <- lm(price ~ ., data = intermediate_3)
 
 cv_3 <- cross_val(intermediate_3)
 
-p_value_2 <- tidy(t.test(cv_2$distr, cv_3$distr, var.equal = F, alternative = "greater")) %>% 
+p_value_2 <- 
+  tidy(t.test(cv_2$distr, cv_3$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
   formatC(format = "e")
@@ -339,26 +369,29 @@ SD_RMSE <- round(rbind(cv_2$sd_rmse, cv_3$sd_rmse))
 p_vals <- rbind(" ", p_value_2)
 
 cbind(BIC(model_2, model_3), Mean_RMSE, SD_RMSE, p_vals) %>%
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
-Once again, let us analyze the results summary:
+\hfill\break
+Once again, let us analyze the resulting summary:
 
 * In terms of our comparison criteria, introducing this new variables improves the model.
-* The Mean RMSE is reduced by about 30.000$
-* The standard deviation of RMSEs remains similar to the previous one. So adding this variable does not destabilizes the model cosiderably.
-* Once Again, the P-value obtained suggests that the difference in the distribution of RMSEs is highly significant when using this additional variable.
+* The mean RMSE is reduced by about 30.000$
+* The standard deviation of the RMSE remains similar to the previous one. So adding this variable does not destabilizes the model considerably.
+* Once again, the p-value obtained suggests that the difference in the distribution of RMSEs is highly significant when using this additional variable.
 * Considerably large improvement in the BIC metric.
+\newpage
 
+#### The factorization:
 
-#### 2. Factorize:
-
-The second and third additional columns, are less complicated, being only a simplification of two current columns. The general reasoning is, rather than using all the values provided in the column, we are only concerned on whether or not there is a non-zero value present. The specific transformations are:
+The second and third additional columns are less complicated, being only a simplification of two current columns. The general reasoning is rather than using all the values provided in the column, we are only concerned on whether or not there is a non-zero value present. The specific transformations are:
 
 * From the _view_ variable, create a "yes or no" variable indicating if the properties has been viewed or not.
-* From the _year renovated_ variable, create a variables that specifies if the property has ever been renovated or not.
+* From the _year renovated_ variable, create a variable that specifies if the property has ever been renovated or not.
 
-For the following experiment (model 3), we will test if adding the transformed variables will improve the model as well as whether we should keep the untransformed original ones on which the new ones are based or not.
+For the following experiment, we will test if adding the transformed variables will improve the model as well as whether we should keep the untransformed original ones on which the new ones are based or not. Note that in the following output the p-value always refers to a comparison against the uppermost model within the table.
+\hfill\break
 
 ```{r}
 intermediate_3.1 <- full_data_woo
@@ -366,7 +399,8 @@ model_3.1 <- lm(price ~ ., data = intermediate_3.1)
 
 cv_3.1 <- cross_val(intermediate_3.1)
 
-p_value_2.1 <- tidy(t.test(cv_3$distr, cv_3.1$distr, var.equal = F, alternative = "greater")) %>% 
+p_value_2.1 <- 
+  tidy(t.test(cv_3$distr, cv_3.1$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
   round(., 2)
@@ -378,7 +412,8 @@ model_3.2 <- lm(price ~ ., data = intermediate_3.2)
 
 cv_3.2 <- cross_val(intermediate_3.2)
 
-p_value_2.2 <- tidy(t.test(cv_3$distr, cv_3.2$distr, var.equal = F, alternative = "greater")) %>% 
+p_value_2.2 <- 
+  tidy(t.test(cv_3$distr, cv_3.2$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
   round(., 2)
@@ -388,18 +423,21 @@ SD_RMSE <- round(rbind(cv_3$sd_rmse, cv_3.1$sd_rmse, cv_3.2$sd_rmse))
 p_vals <- rbind(" ", p_value_2.1, p_value_2.2)
 
 cbind(BIC(model_3, model_3.1, model_3.2), Mean_RMSE, SD_RMSE, p_vals) %>%
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
+\hfill\break
 As the tests reveal, keeping the factorized variables while removing the variables they are based on (model 3.2) proved to be of no improvement at all. If anything it decreases the accuracy in terms of the BIC. 
 
-On the other hand factorizing while keeping the original variables (model 3.1) improves the model performance slightly as indicated by the drop in BIC of about 50 points. The mean RMSE was reduced to some extent as well, although the p-value indicates a low chance of this difference to be significant.
+On the other hand factorizing while keeping the original variables (model 3.1) improves the model performance slightly as indicated by the drop in BIC of about 50 points. The mean RMSE was reduced to some extent as well, although the p-value indicates a low chance of this difference being significant.
 
-Now that we have attempted and tested creations of new variables, we'll proceed with correlation analysis in the next section, although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them.
+Now that we have attempted and tested creations of new variables, we'll proceed with correlation analysis in the next section. Although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them, they are still subject to testing.
 
-### Correlation analysis
+### The correlation analysis
 
-In the following table, we present the correlation coefficients between each of the predictors and the target variable (price). The idea is to determine how linearly related are each of this variables to the response and based on this, do a subselection of the most correlated ones and determine if there is an improvement.
+In the following table, we present the correlation coefficients between each of the predictors and the target variable (price). The idea is to determine how linearly related are each of those variables to the response and based on this, do a sub selection of the most correlated ones to determine if there is an improvement.
+\hfill\break
 
 ```{r echo=FALSE, warning=FALSE}
 corrs <- full_data %>%
@@ -421,10 +459,13 @@ rownames(corrs) = NULL
 colnames(corrs) = NULL
 
 cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
-Looking at the table, we draw the following hypothesis: Given that we observe a big jump in correlation from 0.107 to 0.314 in between the yr_renovated and floor columns, then dropping all variables with a correlation below 0.314 might decrease prediction error.
+\hfill\break
+Looking at the table, we suggest the following hypothesis: Given that we observe a big jump in correlation from 0.107 to 0.314 in between the variable yr_renovated and floor, dropping all variables with a correlation below 0.314 might decrease prediction error and improve the model.
+\hfill\break
 
 ```{r warning=FALSE}
 intermediate_4 <- full_data_woo %>%
@@ -437,25 +478,25 @@ cv_4 <- cross_val(intermediate_4)
 Mean_RMSE <- round(rbind(cv_3$m_rmse, cv_4$m_rmse), 0)
 SD_RMSE <- round(rbind(cv_3$sd_rmse, cv_4$sd_rmse), 0)
 
-p_value_3 <- tidy(t.test(cv_3$distr, cv_4$distr, var.equal = F, alternative = "greater")) %>% 
+p_value_3 <- 
+  tidy(t.test(cv_3$distr, cv_4$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
-  formatC(format = "e") %>% 
+  round(., 2) %>% 
   rbind(" ",.)
 
 cbind(BIC(model_3, model_4), Mean_RMSE, SD_RMSE, p_value_3) %>%
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
-As we can see, although the variability of the predictions is reduced, the actual mean of the RMSEs slightly increases, which is not a desirable result. This together with the slight increase of the AIC, dropping the less correlated variables decreases the model performance. Looking at the P-value however, helps realize that this conclusions are not very significant, and the actual difference in including or not this variables is rather neglegible.
+As we can see, although the variability of the predictions is reduced, the actual mean of the RMSEs increases, which is not a desirable result. This together with the huge increase of the BIC, dropping the less correlated variables decreases the model performance. Looking at the p-value, we realize that there is no evidence at all that the reduced model performs better.
 
+### The variable selection
 
-
-### Variable selection
-
-As we saw earlier the variable sqm_living is a linear combination of sqm_above and sqm_basement. Thus it might be reasonable to select the best performing model with a certain subset of those variables. To figure that out we first tried to find the best transformation of the all of those variables under the assumption that doing so might improve the RMSE. We used an array of different transformations for each variable seperately and evaluated the impact through the change in the BIC compared to a model containing the untransformed variable.
-
+As we saw earlier the variable sqm_living is a linear combination of sqm_above and sqm_basement. Thus it might be reasonable to select the best performing model with a certain subset of those variables. To figure that out we first tried to find the best transformation of the all of those variables under the assumption that doing so might improve the RMSE. We used an array of different transformations for each variable separately and evaluated the impact through the change in the BIC compared to a model containing the untransformed variable.
 \hfill\break
+
 ```{r}
 intermediate_5 <- full_data_woo %>%
   mutate(
@@ -480,8 +521,7 @@ cv_6 <- cross_val(intermediate_6)
 
 p_value_4 <- tidy(t.test(cv_5$distr, cv_6$distr, var.equal = F)) %>% 
   select(p.value) %>% 
-  unlist() %>% 
-  formatC(format = "e") 
+  unlist()
 
 row_names <- c("above & basement", "living")
 col_names <- c("R^2 adjust.", "AIC", "BIC", "Mean_RMSE", "SD_RMSE", "P-value")
@@ -498,21 +538,62 @@ a <- matrix(
     round(BIC(model_6), 0),
     round(cv_6$m_rmse, 0),
     round(cv_6$sd_rmse, 0),
-    p_value_4),
+    round(p_value_4, 2)),
   ncol = 6,
   byrow = T,
   dimnames = list(row_names, col_names)
 )
 
 a %>%
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
-Comparing both models with each other, the result is quite inconclusive. On the one hand, the p-value indicates that there is no significant difference between their distributions of RMSEs. According to the priciple of parsimony one should stick with the second model, containing sqm_living instead of sqm_basement and sqm_above, due to a reduced amount of variables.
+\hfill\break
+Comparing both models with each other the result is quite inconclusive. On the one hand, the p-value indicates that there is no significant difference between their distributions of RMSEs. According to the principle of parsimony one should stick with the second model, containing sqm_living instead of sqm_basement and sqm_above, due to a reduced amount of variables.
 
 However the BIC, AIC and the adjusted $R^2$ suggest the first model to be the more precise one and that's why we have chosen to stick to this particular model.
 
-Applying the aforementioned method of trying different transformations on variables we are now going to use it for all the other variables as well. We will then compare this last model with the untransformed previous one as well as the very first model to have an overview of progress we made as well as to provide us with a last comparison to draw our final conclusion. 
+### The reduced model 
+
+We are now going to check if the model can be improved by dropping some combination of variables by using a step-wise selection approach based on the BIC as the selection metric.
+\hfill\break
+
+```{r include=FALSE}
+drop1(model_5, k = log(nrow(intermediate_5)))
+reduced_model <- stepAIC(model_5, k = log(nrow(intermediate_5)))
+```
+
+```{r}
+intermediate_reduced <- full_data_woo %>% 
+  select(-zipcode, -sqm_lot15, -month_of_year, -wasViewed)
+
+cv_reduced <- cross_val(intermediate_reduced)
+
+p_value_red <-
+  tidy(
+    t.test(cv_5$distr, cv_reduced$distr, var.equal = F, alternative = "greater")) %>% 
+  select(p.value) %>% 
+  unlist() %>% 
+  formatC(format = "e") %>% 
+  rbind(" ",.)
+
+Mean_RMSE <- round(rbind(cv_5$m_rmse, cv_reduced$m_rmse))
+SD_RMSE <- round(rbind(cv_5$sd_rmse, cv_reduced$sd_rmse))
+
+
+cbind(BIC(model_5, reduced_model), Mean_RMSE, SD_RMSE, p_value_red) %>%
+  kable() %>% 
+  kable_styling()
+```
+
+\hfill\break
+Removing certain variables was advised by the BIC. Using the step-wise selection approach zipcode, sqm_lot15, month_of_year and wasViewed were removed. Testing this model against the previous one yielded disagreeing results. Although the BIC improved slightly, the mean RMSE increased considerably as well as the standard deviation of the mean RMSE. We will therefore stick to the previous complete model.
+
+### The transformations
+
+Applying the previously mentioned method of trying different transformations on variables we are now going to use it for all the other variables as well. We will then compare this last model with the untransformed previous one as well as the very first model to have an overview of progress we made as well as to provide us with a last comparison to draw our final conclusion. 
+\hfill\break
 
 ```{r}
 int_col_names <- full_data_woo %>% 
@@ -559,16 +640,21 @@ for (i in 2:length(int_col_names)) {
     modify_at(int_col_names[i], function(x) x^10) %>% 
     lm(price ~ ., data = .)
 
-  bics <- BIC(no_trans, square_rt, loga, power_2, power_3, power_4, power_5, power_6, power_10)
-  bics_names <- c("no_trans", "square_rt", "loga", "power_2", "power_3", "power_4", "power_5", "power_6", "power_10")
-  results[i - 1] <- bics_names[which(bics[, 2] == min(bics[, 2]))]
-}
+  bics <- BIC(
+    no_trans, square_rt, loga, power_2, power_3,
+    power_4, power_5, power_6, power_10
+  )
+  bics_names <-c(
+    "no_trans", "square_rt", "loga", "power_2",
+    "power_3", "power_4", "power_5", "power_6", "power_10"
+  )
+  results[i - 1] <- bics_names[which(bics[, 2] == min(bics[, 2]))]}
 
 transformed_data <- full_data_woo %>%
   select(-sqm_living) %>%
   mutate(
     sqm_above = sqrt(sqm_above),
-    sqm_basement = (sqm_basement)^2,
+    sqm_basement = sqrt(sqm_basement),
     floors = log10(floors + 1),
     bathrooms = log10(bathrooms + 1),
     sqm_living15 = log10(sqm_living15 + 1),
@@ -585,7 +671,6 @@ transformed_data <- full_data_woo %>%
     yr_renovated = (yr_renovated)^10,
     zipcode = (zipcode)^10
   )
-# Needs to be updated
 ```
 
 ```{r}
@@ -594,31 +679,37 @@ model_7 <- transformed_data %>%
 
 cv_7 <- cross_val(transformed_data)
 
-p_value_4 <- tidy(t.test(cv_1$distr, cv_5$distr, var.equal = F, alternative = "greater")) %>%
+p_value_4 <- 
+  tidy(t.test(cv_1$distr, cv_5$distr, var.equal = F, alternative = "greater")) %>%
   select(p.value) %>%
   unlist() %>%
   formatC(format = "e")
 
-p_value_5 <- tidy(t.test(cv_5$distr, cv_7$distr, var.equal = F, alternative = "greater")) %>%
+p_value_5 <- 
+  tidy(t.test(cv_5$distr, cv_7$distr, var.equal = F, alternative = "greater")) %>%
   select(p.value) %>%
   unlist() %>%
-  formatC(format = "e")
+  round(., digits = 2)
 
 
 Mean_RMSE <- rbind(cv_1$m_rmse, cv_5$m_rmse, cv_7$m_rmse)
 SD_RMSE <- rbind(cv_1$sd_rmse, cv_5$sd_rmse, cv_7$sd_rmse)
-
+p_values <- c(" ", p_value_4, p_value_5)
 stopCluster(cl)
 
 
 cbind(BIC(model_1, model_5, model_7), Mean_RMSE, SD_RMSE, p_values) %>%
-  kable()
+  kable() %>% 
+  kable_styling()
 ```
 
+## The conclusion
 
+Our best model in the end turned out to be model 5. Its mean RMSE decreased by 70.000$, the standard deviation of the RMSE decreased to one fifth and the BIC dropped by about 8.500 compared to the very first model. We achieved this by taking the log of price, our response variable, removing the most extreme outliers defined by the cook's distance, adding the mean price per zipcode variable and factorized versions of some variables, resolving the singularity issue and transforming sqm_above and sqm_basement. All the other methods we tried to improve our model turned out to be either ineffective or yielded a worse model than before.
 
+In some occasions we noticed disagreements within our model selection criteria, namely BIC and AIC against the RMSE. Some methods improved the BIC slightly or even significantly but at the same the raised the mean RMSE slightly or even substantially. In our opinion the BIC proved to be an ineffective predictor compared to the RMSE. Thus it might be advisable to use a cross validation method and the subsequent calculation of the mean RMSE at every step along the way if possible and if computational power and time is sufficiently available.
 
-
+Despite our attempts at improving the model through correlation analysis, step-wise BIC reduction, variable transformations and using the BIC as a selection metric, desired results were not achieved by that. This failure of producing favorable outcomes does not translate into those methods not being successfully applicable in different settings and with different types of data sets.
 
 
 
