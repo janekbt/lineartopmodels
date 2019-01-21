@@ -369,7 +369,7 @@ cv_3.1 <- cross_val(intermediate_3.1)
 p_value_2.1 <- tidy(t.test(cv_3$distr, cv_3.1$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
-  formatC(format = "e")
+  round(., 2)
 
 intermediate_3.2 <- full_data_woo %>% 
   select(-view, -yr_renovated)
@@ -378,10 +378,10 @@ model_3.2 <- lm(price ~ ., data = intermediate_3.2)
 
 cv_3.2 <- cross_val(intermediate_3.2)
 
-p_value_2.2 <- tidy(t.test(cv_3.1$distr, cv_3.2$distr, var.equal = F, alternative = "greater")) %>% 
+p_value_2.2 <- tidy(t.test(cv_3$distr, cv_3.2$distr, var.equal = F, alternative = "greater")) %>% 
   select(p.value) %>% 
   unlist() %>% 
-  formatC(format = "e")
+  round(., 2)
 
 Mean_RMSE <- round(rbind(cv_3$m_rmse, cv_3.1$m_rmse, cv_3.2$m_rmse))
 SD_RMSE <- round(rbind(cv_3$sd_rmse, cv_3.1$sd_rmse, cv_3.2$sd_rmse))
@@ -425,8 +425,12 @@ cbind(corrs[1:7,], corrs[8:14,], corrs[15:21,]) %>%
 Looking at the table, we draw the following hypothesis: Given that we observe a big jump in correlation from 0.107 to 0.314 in between the yr_renovated and floor columns, then dropping all variables with a correlation below 0.314 might decrease prediction error.
 
 ```{r warning=FALSE}
+
+full_data_woo <- full_data_woo %>% 
+  select(-wasViewed, -renovated)
+
 intermediate_4 <- full_data_woo %>%
-  dplyr::select(one_of(good_corr), renovated, waterfront, wasViewed)
+  dplyr::select(one_of(good_corr), waterfront)
 
 model_4 <- lm(price ~ ., data = intermediate_4)
 
