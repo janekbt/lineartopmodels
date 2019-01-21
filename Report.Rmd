@@ -395,7 +395,7 @@ As the tests reveal, keeping the factorized variables while removing the variabl
 
 On the other hand factorizing while keeping the original variables (model 3.1) improves the model performance slightly as indicated by the drop in BIC of about 50 points. The mean RMSE was reduced to some extent as well, although the p-value indicates a low chance of this difference to be significant.
 
-Now that we have attepted and tested creations of new variables, we'll proceed with correlation analysis in the next section, although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them.
+Now that we have attempted and tested creations of new variables, we'll proceed with correlation analysis in the next section, although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them.
 
 ### Correlation analysis
 
@@ -568,18 +568,22 @@ transformed_data <- full_data_woo %>%
   select(-sqm_living) %>%
   mutate(
     sqm_above = sqrt(sqm_above),
-    sqm_basement = sqrt(sqm_basement),
-    floors = log10(floors),
-    bathrooms = bathrooms^(1/5),
-    sqm_living15 = log10(sqm_living15),
-    mean_price_zip = mean_price_zip,
-    grade = log10(grade),
-    condition = log10(condition),
-    yr_built = log10(yr_built),
-    lat = log10(lat),
-    week_of_year = log10(week_of_year),
-    month_of_year = log10(month_of_year),
-    sqm_lot15 = log10(sqm_lot15)
+    sqm_basement = (sqm_basement)^2,
+    floors = log10(floors + 1),
+    bathrooms = log10(bathrooms + 1),
+    sqm_living15 = log10(sqm_living15 + 1),
+    mean_price_zip = log10(mean_price_zip + 1),
+    grade = log10(grade + 1),
+    condition = log10(condition + 1),
+    yr_built = log10(yr_built + 1),
+    lat = log10(lat + 1),
+    week_of_year = log10(week_of_year + 1),
+    month_of_year = log10(month_of_year + 1),
+    sqm_lot15 = log10(sqm_lot15 + 1),
+    bedrooms = (bedrooms)^4,
+    view = (view)^4,
+    yr_renovated = (yr_renovated)^10,
+    zipcode = (zipcode)^10
   )
 # Needs to be updated
 ```
