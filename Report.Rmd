@@ -393,7 +393,7 @@ cbind(BIC(model_3, model_3.1, model_3.2), Mean_RMSE, SD_RMSE, p_vals) %>%
 
 NEED SOME DISCUSSION ABOUT RESULTS !!!
 
-Now that we have attepted and tested creations of new variables, we'll proceed with correlation analysis in the next section, although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them.
+Now that we have attempted and tested creations of new variables, we'll proceed with correlation analysis in the next section, although our experiments so far suggest that at least one of the recently added variables will stay present in the final model, given the improvements obtained when adding the three of them.
 
 ### Correlation analysis
 
